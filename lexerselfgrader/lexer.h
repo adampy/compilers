@@ -1,5 +1,5 @@
 // header file for the lexer module
- #define TEST		// uncomment this line to run the self-grader
+#define TEST		// uncomment this line to run the self-grader
 
 
 

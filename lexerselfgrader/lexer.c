@@ -304,7 +304,14 @@ Token PeekNextToken() {
 
   // Fill buffer if this is the first call
   if (isBufferInitialised == 0) {
-    fillBuffer();
+    int returnCode = fillBuffer();
+      if (returnCode > 0) {
+      t.ln = returnCode;
+      t.ec = EofInCom;
+      t.tp = ERR;
+      strcpy(t.lx, "Error: unexpected eof in comment");
+      return t;
+    }
     isBufferInitialised++;
   }
 
