@@ -1,2 +1,4 @@
 gcc -std=c99 lexer.h lexer.c LexerGrader.c -g -o LexerGrader
-./LexerGrader
+cd files
+../LexerGrader
+cd ..
