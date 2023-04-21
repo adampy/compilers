@@ -1,0 +1,3 @@
+< CustomCommentDelimit.jack, 7, while, RESWORD >
+< CustomCommentDelimit.jack, 7, x, ID >
+< CustomCommentDelimit.jack, 18, End of File, EOFile >

@@ -1,0 +1,3 @@
+< IdentifiersOnly.jack, 1, id, ID >
+< IdentifiersOnly.jack, 2, id1, ID >
+< IdentifiersOnly.jack, 3, Error: illegal symbol in source file, ERR >
