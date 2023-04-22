@@ -5,6 +5,34 @@
 #include "lexer.h"
 #include "parser.h"
 
+// Modified get token and peek token
+ParserInfo lexerErrorInfo;
+
+/**
+ * Wrapper to place any lexer errors when performing `GetNextToken`
+ * inside a global `ParserInfo` object, called `lexerErrorInfo`
+*/
+Token mGetNextToken() {
+	Token t = GetNextToken();
+	if (t.tp == ERR) {
+		lexerErrorInfo.er = lexerErr;
+		lexerErrorInfo.tk = t;
+	}
+	return t;
+}
+
+/**
+ * Wrapper to place any lexer errors when performing `PeekNextToken`
+ * inside a global `ParserInfo` object, called `lexerErrorInfo`
+*/
+Token mPeekNextToken() {
+	Token t = PeekNextToken();
+	if (t.tp == ERR) {
+		lexerErrorInfo.er = lexerErr;
+		lexerErrorInfo.tk = t;
+	}
+	return t;
+}
 
 // you can declare prototypes of parser functions below
 ParserInfo statementList();
@@ -14,7 +42,8 @@ ParserInfo expressionList();
 // operand -> integerConstant | identifier [.identifier ] [ [ expression ] | (expressionList ) ] | (expression) | stringLiteral | true | false | null | this
 ParserInfo operand() {
 	ParserInfo pi;
-	Token t = GetNextToken();
+	Token t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 
 	// Cases: true | false | null | this
 	if (t.tp == RESWORD && (!strcmp(t.lx, "true") || !strcmp(t.lx, "false") || !strcmp(t.lx, "null") || !strcmp(t.lx, "this"))) {
@@ -859,7 +888,9 @@ ParserInfo classDeclar() {
 	ParserInfo pi;
 
 	// class
-	Token t = GetNextToken();
+	Token t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo;
+
 	if (t.tp != RESWORD || strcmp(t.lx, "class")) {
 		pi.er = classExpected;
 		pi.tk = t;
@@ -867,7 +898,8 @@ ParserInfo classDeclar() {
 	}
 
 	// identifier
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo;
 	if (t.tp != ID) {
 		pi.er = idExpected;
 		pi.tk = t;
@@ -875,7 +907,7 @@ ParserInfo classDeclar() {
 	}
 
 	// {
-	t = GetNextToken();
+	t = mGetNextToken();
 	if (t.tp != SYMBOL || strcmp(t.lx, "{")) {
 		pi.er = openBraceExpected;
 		pi.tk = t;
@@ -891,7 +923,8 @@ ParserInfo classDeclar() {
 	}
 
 	// }
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo;
 	if (t.tp != SYMBOL || strcmp(t.lx, "}")) {
 		pi.er = closeBraceExpected;
 		pi.tk = t;
@@ -901,10 +934,6 @@ ParserInfo classDeclar() {
 	pi.er = none;
 	return pi;
 }
-
-
-
-
 
 
 int InitParser (char* file_name) {
