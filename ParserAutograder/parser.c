@@ -21,19 +21,6 @@ Token mGetNextToken() {
 	return t;
 }
 
-/**
- * Wrapper to place any lexer errors when performing `PeekNextToken`
- * inside a global `ParserInfo` object, called `lexerErrorInfo`
-*/
-Token mPeekNextToken() {
-	Token t = PeekNextToken();
-	if (t.tp == ERR) {
-		lexerErrorInfo.er = lexerErr;
-		lexerErrorInfo.tk = t;
-	}
-	return t;
-}
-
 // you can declare prototypes of parser functions below
 ParserInfo statementList();
 ParserInfo expression();
@@ -64,7 +51,8 @@ ParserInfo operand() {
 		if (pi.er != none) return pi;
 
 		// )
-		t = GetNextToken();
+		t = mGetNextToken();
+		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 		if (t.tp != SYMBOL  || strcmp(t.lx, ")")) {
 			pi.er = closeParenExpected;
 			pi.tk = t;
@@ -77,13 +65,15 @@ ParserInfo operand() {
 
 	// Cases: identifier [ . identifier ] [ [ expression ] | ( expressionList ) ]
 	if (t.tp == ID) {
-		t = PeekNextToken(); // t is either . [ or ( 
+		t = PeekNextToken(); // t is either . [ or (
 
 		// [ . identifier ]
 		if (t.tp == SYMBOL && !strcmp(t.lx, ".")) {
 			// . identifier
-			GetNextToken(); // Consume the .
-			t = GetNextToken(); // identifier
+			mGetNextToken(); // Consume the .
+			if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
+			t = mGetNextToken(); // identifier
+			if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 			if (t.tp != ID) {
 				pi.er = idExpected;
 				pi.tk = t;
@@ -94,12 +84,14 @@ ParserInfo operand() {
 
 		// [ [ expression ] | ( expressionList ) ]
 		if (t.tp == SYMBOL && !strcmp(t.lx, "[")) {
-			GetNextToken(); // Consume [
+			mGetNextToken(); // Consume [
+			if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 			pi = expression();
 			if (pi.er != none) return pi;
 
 			// ]
-			t = GetNextToken();
+			t = mGetNextToken();
+			if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 			if (t.tp != SYMBOL  || strcmp(t.lx, "]")) {
 				pi.er = closeBracketExpected;
 				pi.tk = t;
@@ -108,12 +100,14 @@ ParserInfo operand() {
 
 
 		} else if (t.tp == SYMBOL && !strcmp(t.lx, "(")) {
-			GetNextToken(); // Consume (
+			mGetNextToken(); // Consume (
+			if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 			pi = expressionList();
 			if (pi.er != none) return pi;
 
 			// )
-			t = GetNextToken();
+			t = mGetNextToken();
+			if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 			if (t.tp != SYMBOL || strcmp(t.lx, ")")) {
 				pi.er = closeParenExpected;
 				pi.tk = t;
@@ -138,7 +132,8 @@ ParserInfo factor() {
 	// ( - | ~ | ε )
 	t = PeekNextToken();
 	if (t.tp == SYMBOL && (!strcmp(t.lx, "-") || !strcmp(t.lx, "~"))) {
-		GetNextToken(); // Consume - or ~
+		mGetNextToken(); // Consume - or ~
+		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	}
 
 	// operand
@@ -158,7 +153,8 @@ ParserInfo term() {
 	// { ( * | / ) factor }
 	t = PeekNextToken();
 	while (t.tp == SYMBOL && (!strcmp(t.lx, "*") || !strcmp(t.lx, "/"))) {
-		GetNextToken(); // Consume * or /
+		mGetNextToken(); // Consume * or /
+		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 
 		// factor
 		pi = factor();
@@ -182,7 +178,8 @@ ParserInfo arithmeticExpression() {
 	// { ( + | - ) term }
 	t = PeekNextToken();
 	while (t.tp == SYMBOL && (!strcmp(t.lx, "+") || !strcmp(t.lx, "-"))) {
-		GetNextToken(); // Consume + or -
+		mGetNextToken(); // Consume + or -
+		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 
 		// term
 		pi = term();
@@ -206,7 +203,8 @@ ParserInfo relationalExpression() {
 	// { ( = | > | < ) arithmeticExpression }
 	t = PeekNextToken();
 	while (t.tp == SYMBOL && (!strcmp(t.lx, "=") || !strcmp(t.lx, ">") || !strcmp(t.lx, "<"))) {
-		GetNextToken(); // Consume =, >, or <
+		mGetNextToken(); // Consume =, >, or <
+		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 
 		// arithmeticExpression
 		pi = arithmeticExpression();
@@ -243,7 +241,8 @@ ParserInfo expression() {
 	// { ( & | | ) relationalExpression }
 	t = PeekNextToken();
 	while (t.tp == SYMBOL && (!strcmp(t.lx, "&") || !strcmp(t.lx, "|"))) {
-		GetNextToken(); // Consume & or |
+		mGetNextToken(); // Consume & or |
+		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 
 		// relationalExpression
 		pi = relationalExpression();
@@ -261,7 +260,8 @@ ParserInfo returnStatement() {
 	Token t;
 
 	// return
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != RESWORD || strcmp(t.lx, "return")) {
 		pi.er = syntaxError;
 		pi.tk = t;
@@ -276,7 +276,8 @@ ParserInfo returnStatement() {
 	}
 
 	// ;
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != SYMBOL || strcmp(t.lx, ";")) {
 		pi.er = semicolonExpected;
 		pi.tk = t;
@@ -307,7 +308,8 @@ ParserInfo expressionList() {
 	t = PeekNextToken(); // t is either a comma or not
 	while ((t.tp == SYMBOL && !strcmp(t.lx, ","))) { // Repeat whilst comma
 		// ,
-		t = GetNextToken();
+		t = mGetNextToken();
+		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 		if (t.tp != SYMBOL  || strcmp(t.lx, ",")) {
 			pi.er = syntaxError;
 			pi.tk = t;
@@ -330,7 +332,8 @@ ParserInfo subroutineCall() {
 	Token t;
 
 	// identifier
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != ID) {
 		pi.er = idExpected;
 		pi.tk = t;
@@ -338,16 +341,19 @@ ParserInfo subroutineCall() {
 	}
 
 	// [ . identifier ]
-	t = GetNextToken(); // t is either . or (
+	t = mGetNextToken(); // t is either . or (
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp == SYMBOL && !strcmp(t.lx, ".")) {
 		// identifier
-		t = GetNextToken();
+		t = mGetNextToken();
+		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 		if (t.tp != ID) {
 			pi.er = idExpected;
 			pi.tk = t;
 			return pi;
 		}
-		t = GetNextToken(); // Move onwards to ( if we had .
+		t = mGetNextToken(); // Move onwards to ( if we had .
+		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	}
 	
 	// (
@@ -362,7 +368,8 @@ ParserInfo subroutineCall() {
 	if (pi.er != none) return pi;
 
 	// )
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != SYMBOL  || strcmp(t.lx, ")")) {
 		pi.er = closeParenExpected;
 		pi.tk = t;
@@ -379,7 +386,8 @@ ParserInfo doStatement() {
 	Token t;
 
 	// do
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != RESWORD || strcmp(t.lx, "do")) {
 		pi.er = syntaxError;
 		pi.tk = t;
@@ -391,7 +399,8 @@ ParserInfo doStatement() {
 	if (pi.er != none) return pi;
 
 	// ;
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != SYMBOL || strcmp(t.lx, ";")) {
 		pi.er = semicolonExpected;
 		pi.tk = t;
@@ -408,7 +417,8 @@ ParserInfo whileStatement() {
 	Token t;
 
 	// while
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != RESWORD || strcmp(t.lx, "while")) {
 		pi.er = syntaxError;
 		pi.tk = t;
@@ -416,7 +426,8 @@ ParserInfo whileStatement() {
 	}
 
 	// (
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != SYMBOL  || strcmp(t.lx, "(")) {
 		pi.er = openParenExpected;
 		pi.tk = t;
@@ -428,7 +439,8 @@ ParserInfo whileStatement() {
 	if (pi.er != none) return pi;
 
 	// )
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != SYMBOL  || strcmp(t.lx, ")")) {
 		pi.er = closeParenExpected;
 		pi.tk = t;
@@ -449,7 +461,8 @@ ParserInfo ifStatement() {
 	Token t;
 
 	// if
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != RESWORD || strcmp(t.lx, "if")) {
 		pi.er = syntaxError;
 		pi.tk = t;
@@ -457,7 +470,8 @@ ParserInfo ifStatement() {
 	}
 
 	// (
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != SYMBOL  || strcmp(t.lx, "(")) {
 		pi.er = openParenExpected;
 		pi.tk = t;
@@ -469,7 +483,8 @@ ParserInfo ifStatement() {
 	if (pi.er != none) return pi;
 
 	// )
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != SYMBOL  || strcmp(t.lx, ")")) {
 		pi.er = closeParenExpected;
 		pi.tk = t;
@@ -483,7 +498,8 @@ ParserInfo ifStatement() {
 	// [else { {statement} }]
 	t = PeekNextToken();
 	if (t.tp == RESWORD && !strcmp(t.lx, "else")) {
-		GetNextToken(); // Consume else token
+		mGetNextToken(); // Consume else token
+		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 		pi = statementList();
 		if (pi.er != none) return pi;
 	}
@@ -498,7 +514,8 @@ ParserInfo letStatement() {
 	Token t;
 
 	// let
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != RESWORD || strcmp(t.lx, "let")) {
 		pi.er = syntaxError;
 		pi.tk = t;
@@ -506,7 +523,8 @@ ParserInfo letStatement() {
 	}
 
 	// identifier
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != ID) {
 		pi.er = idExpected;
 		pi.tk = t;
@@ -514,21 +532,24 @@ ParserInfo letStatement() {
 	}
 
 	// [ [expression] ]
-	t = GetNextToken(); // Here t can be = or a [
+	t = mGetNextToken(); // Here t can be = or a [
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp == SYMBOL && !strcmp(t.lx, "[")) {
 		// expression
 		pi = expression();
 		if (pi.er != none) return pi;
 
 		// ]
-		t = GetNextToken();
+		t = mGetNextToken();
+		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 		if (t.tp != SYMBOL || strcmp(t.lx, "]")) {
 			pi.er = closeBracketExpected;
 			pi.tk = t;
 			return pi;
 		}
 
-		t = GetNextToken(); // Move onwards, such that is a =
+		t = mGetNextToken(); // Move onwards, such that is a =
+		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	}
 	
 	// =
@@ -543,7 +564,8 @@ ParserInfo letStatement() {
 	if (pi.er != none) return pi;
 
 	// ;
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != SYMBOL || strcmp(t.lx, ";")) {
 		pi.er = semicolonExpected;
 		pi.tk = t;
@@ -560,7 +582,8 @@ int isType(Token t) {
 // type -> int | char | boolean | identifier
 ParserInfo type() {
 	ParserInfo pi;
-	Token t = GetNextToken();
+	Token t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 
 	if (!isType(t)) {
 		pi.er = illegalType;
@@ -578,7 +601,8 @@ ParserInfo varDeclarStatement() {
 	Token t;
 
 	// var
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != RESWORD || strcmp(t.lx, "var")) {
 		pi.er = syntaxError;
 		pi.tk = t;
@@ -590,7 +614,8 @@ ParserInfo varDeclarStatement() {
 	if (pi.er != none) return pi;
 
 	// identifier
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != ID) {
 		pi.er = idExpected;
 		pi.tk = t;
@@ -601,14 +626,16 @@ ParserInfo varDeclarStatement() {
 	t = PeekNextToken();
 	while ((t.tp != SYMBOL || strcmp(t.lx, ";"))) {
 		// ,
-		t = GetNextToken();
+		t = mGetNextToken();
+		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 		if (t.tp != SYMBOL  || strcmp(t.lx, ",")) {
 			pi.er = syntaxError;
 			pi.tk = t;
 		}
 
 		// identifier
-		t = GetNextToken();
+		t = mGetNextToken();
+		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 		if (t.tp != ID) {
 			pi.er = idExpected;
 			pi.tk = t;
@@ -619,7 +646,8 @@ ParserInfo varDeclarStatement() {
 	}
 
 	// ;
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != SYMBOL || strcmp(t.lx, ";")) {
 		pi.er = semicolonExpected;
 		pi.tk = t;
@@ -670,7 +698,8 @@ ParserInfo statementList() {
 	Token t;
 
 	// {
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != SYMBOL || strcmp(t.lx, "{")) {
 		pi.er = openBraceExpected;
 		pi.tk = t;
@@ -686,7 +715,8 @@ ParserInfo statementList() {
 	}
 
 	// }
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != SYMBOL || strcmp(t.lx, "}")) {
 		pi.er = closeBraceExpected;
 		pi.tk = t;
@@ -719,7 +749,8 @@ ParserInfo paramList() {
 	if (pi.er != none) return pi;
 
 	// identifier
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != ID) {
 		pi.er = idExpected;
 		pi.tk = t;
@@ -730,7 +761,8 @@ ParserInfo paramList() {
 	t = PeekNextToken(); // t is either a comma or not
 	while ((t.tp == SYMBOL && !strcmp(t.lx, ","))) { // Repeat whilst comma
 		// ,
-		t = GetNextToken();
+		t = mGetNextToken();
+		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 		if (t.tp != SYMBOL  || strcmp(t.lx, ",")) {
 			pi.er = syntaxError;
 			pi.tk = t;
@@ -741,7 +773,8 @@ ParserInfo paramList() {
 		if (pi.er != none) return pi;
 
 		// identifier
-		t = GetNextToken();
+		t = mGetNextToken();
+		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 		if (t.tp != ID) {
 			pi.er = idExpected;
 			pi.tk = t;
@@ -757,7 +790,8 @@ ParserInfo paramList() {
 // subroutineDeclar -> (constructor | function | method) (type|void) identifier (paramList) subroutineBody
 ParserInfo subroutineDeclar() {
 	ParserInfo pi;
-	Token t = GetNextToken();
+	Token t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 
 	// (constructor | function | method)
 	if (t.tp != RESWORD || (strcmp(t.lx, "constructor") && strcmp(t.lx, "function") && strcmp(t.lx, "method"))) {
@@ -769,14 +803,16 @@ ParserInfo subroutineDeclar() {
 	// (type|void)
 	t = PeekNextToken();
 	if (t.tp == RESWORD && !strcmp(t.lx, "void")) {
-		GetNextToken(); // Consume void
+		mGetNextToken(); // Consume void
+		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	} else {
 		pi = type();
 		if (pi.er != none) return pi;
 	}
 
 	// identifier
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != ID) {
 		pi.er = idExpected;
 		pi.tk = t;
@@ -784,7 +820,8 @@ ParserInfo subroutineDeclar() {
 	}
 
 	// (
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != SYMBOL  || strcmp(t.lx, "(")) {
 		pi.er = openParenExpected;
 		pi.tk = t;
@@ -796,7 +833,8 @@ ParserInfo subroutineDeclar() {
 	if (pi.er != none) return pi;
 
 	// )
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != SYMBOL  || strcmp(t.lx, ")")) {
 		pi.er = closeParenExpected;
 		pi.tk = t;
@@ -816,7 +854,8 @@ ParserInfo classVarDeclar() {
 	ParserInfo pi;
 
 	// (static | field)
-	Token t = GetNextToken();
+	Token t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != RESWORD || (strcmp(t.lx, "static") && strcmp(t.lx, "field"))) {
 		pi.er = classVarErr;
 		pi.tk = t;
@@ -828,7 +867,8 @@ ParserInfo classVarDeclar() {
 	if (pi.er != none) return pi;
 
 	// identifier
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != ID) {
 		pi.er = idExpected;
 		pi.tk = t;
@@ -839,14 +879,16 @@ ParserInfo classVarDeclar() {
 	t = PeekNextToken();
 	while ((t.tp != SYMBOL || strcmp(t.lx, ";"))) {
 		// ,
-		t = GetNextToken();
+		t = mGetNextToken();
+		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 		if (t.tp != SYMBOL  || strcmp(t.lx, ",")) {
 			pi.er = syntaxError;
 			pi.tk = t;
 		}
 
 		// identifier
-		t = GetNextToken();
+		t = mGetNextToken();
+		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 		if (t.tp != ID) {
 			pi.er = idExpected;
 			pi.tk = t;
@@ -857,7 +899,8 @@ ParserInfo classVarDeclar() {
 	}
 
 	// ;
-	t = GetNextToken();
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != SYMBOL || strcmp(t.lx, ";")) {
 		pi.er = semicolonExpected;
 		pi.tk = t;
