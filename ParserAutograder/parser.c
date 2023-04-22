@@ -992,39 +992,6 @@ int StopParser () {
 	return 1;
 }
 
-// char* ErrorString (SyntaxErrors e)
-// {
-
-// 	switch (e)
-// 	{
-// 		case none: return "no errors";
-// 		case lexerErr: return "lexer error";
-// 		case classExpected: return "keyword class expected";
-// 		case idExpected: return "identifier expected";
-// 		case openBraceExpected:	return "{ expected";
-// 		case closeBraceExpected: return "} expected";
-// 		case memberDeclarErr: return "class member declaration must begin with static, field, constructor , function , or method";
-// 		case classVarErr: return "class variables must begin with field or static";
-// 		case illegalType: return "a type must be int, char, boolean, or identifier";
-// 		case semicolonExpected: return "; expected";
-// 		case subroutineDeclarErr: return "subrouting declaration must begin with constructor, function, or method";
-// 		case openParenExpected: return "( expected";
-// 		case closeParenExpected: return ") expected";
-// 		case closeBracketExpected: return "] expected";
-// 		case equalExpected: return "= expected";
-// 		case syntaxError: return "syntax error";
-// 		default: return "not a valid error code";
-// 	}
-// }
-
-// void ShowInfo (ParserInfo pn)
-// {
-// 	if (pn.er == none)
-// 		printf ("none\n");
-// 	else
-// 		printf ("error type: %s, line: %i,token: %s, \n" , ErrorString(pn.er),  pn.tk.ln , pn.tk.lx  );
-// }
-
 #ifndef TEST_PARSER
 int main (int argc, char *argv[]) {
 	// Get filename argument
