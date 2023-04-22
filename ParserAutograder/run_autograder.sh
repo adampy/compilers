@@ -4,7 +4,7 @@
 #cp /autograder/submission/parser.c  /autograder/source/parser.c
 #cd /autograder/source
 
-cc -std=c99 lexer.h parser.h lexer.c parser.c ParserGrader.c -o par
+cc -std=c99 lexer.h parser.h lexer.c parser.c ParserGrader.c -o par #-Wall -Werror
 
 # test the lexer
 ./par

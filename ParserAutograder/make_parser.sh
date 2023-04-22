@@ -1,0 +1,1 @@
+gcc -std=c99 -g lexer.h parser.h lexer.c parser.c -o parser;
