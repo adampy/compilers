@@ -15,4 +15,80 @@ Email: sc21ac@leeds.ac.uk
 Date Work Commenced: 23/04/2023
 *************************************************************************/
 
+#include <stdio.h>
+#include <stdlib.h>
 #include "symbols.h"
+
+Symbol* head = NULL;
+Symbol* tail = NULL;
+
+/** SCOPE REFERS TO A SYMBOL DEFINES IT
+ * e.g.
+ * class symbol (scope = null)
+ * function/class attr symbol (scope = class symbol)
+ * statement list symbol (scope = function symbol)
+
+/**
+ * Inserts a new symbol in the given scope (when supplied with parent scope)
+*/
+Symbol* insertSymbol(Symbol* scope, Token token, Kind kind, char isPendingDeclaration) {
+    // Assemble Symbol struct
+    Symbol* s = malloc(sizeof(Symbol));
+    s->token = token;
+    s->kind = kind;
+    s->isPendingDeclaration = isPendingDeclaration;
+    s->next = NULL;
+
+    // Add to linked list
+    if (tail == NULL) {
+        head = s;
+        tail = s;
+    } else {
+        tail->next = s;
+        tail = s;
+    }
+    // Return Symbol
+    return tail;
+}
+
+/**
+ * Function to check whether a given symbol, is accessible in the current scope
+*/
+int canGetSymbol() {
+    return 1;
+}
+
+/**
+ * Gets a symbol from the symbol table using the current scope
+ * Returns NULL if not found
+*/
+Symbol* getSymbol(Token token, Symbol* scope) {
+    // Search through all of current scope, return if found
+    // Iteratively go to parent scope of current scope repeat process
+    Symbol* currentScope = scope;
+    while (currentScope != NULL) {
+        Symbol* curr = head;
+        while (curr != NULL) {
+            // check if correct symbol and in scope
+            if (currentScope == curr->scope && token.lx == curr->token.lx) {
+                return curr;
+            }
+            curr = curr->next;
+        }
+        // change scope to parent scope
+        currentScope = currentScope->scope;
+    }
+    return NULL;
+}
+
+/**
+ * Frees up all the memory allocated to the symbol table
+*/
+void freeSymbolTable() {
+    Symbol* curr = head;
+    while (curr != NULL) {
+        Symbol* next = curr->next;
+        free(curr);
+        curr = next;
+    }
+}

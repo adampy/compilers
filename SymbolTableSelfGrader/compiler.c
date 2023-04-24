@@ -14,44 +14,70 @@ Email: sc21ac@leeds.ac.uk
 Date Work Commenced: 23/04/2023
 *************************************************************************/
 
+#include <stdio.h>
+#include <string.h>
+#include <dirent.h>
 #include "compiler.h"
+#include "SymbolGrader.h"
 
 
-int InitCompiler ()
-{
+int InitCompiler() {
 	return 1;
 }
 
-ParserInfo compile (char* dir_name)
-{
+ParserInfo compile(char* dir_name) {
 	ParserInfo p;
+	DIR *dir;
+    struct dirent *de;
 
-	// Init everything
-	// Find all jack files, for each file
-		// Run lexer/parser
-		// Parser adds to global symbol table
-	
+	// Find all jack files
+    dir = opendir(dir_name);
+    while(dir) {
+        de = readdir(dir);
+        if (!de || de->d_type != 8) break;
+
+		// Check if jack file
+		char* filename = de->d_name;
+		char* extension = strrchr(filename, '.');
+		if (extension == NULL) continue;
+		if (strcmp(extension, ".jack")) continue;
+
+		// Assemble full filename
+		char fullFilename[128] = {0};
+		strcpy(fullFilename, dir_name);
+		strcat(fullFilename, "/");
+		strcat(fullFilename, filename);
+
+		// Init lexer and run parser
+		//printf("--- Parsing %s ---\n", fullFilename);
+		InitLexer(fullFilename);
+		ParserInfo pi = Parse(); // Parser adds to global symbol table
+		//PrintError(pi);
+		//printf("Completed parsing!\n");
+		if (pi.er != none) {
+			return pi;
+		}
+    }
+    closedir(dir);
+
 	// Ensure scope is valid
-
 	p.er = none;
+
 	return p;
 }
 
-int StopCompiler ()
-{
-
-
+int StopCompiler() {
 	return 1;
 }
 
 
 #ifndef TEST_COMPILER
-int main ()
-{
-	InitCompiler ();
-	ParserInfo p = compile ("Pong");
-	PrintError (p);
-	StopCompiler ();
+int main() {
+	InitCompiler();
+	ParserInfo p = compile("Pong");
+	printf("--- Overall compilation error ---\n");
+	PrintError(p);
+	StopCompiler();
 	return 1;
 }
 #endif
