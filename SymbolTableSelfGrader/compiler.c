@@ -8,10 +8,10 @@ I confirm that the following code has been developed and written by me and it is
 I also confirm that I have not copied any parts of this program from another person or any other source or facilitated someone to copy this program from me.
 I confirm that I will not publish the program online or share it with anyone without permission of the module leader.
 
-Student Name:
-Student ID:
-Email:
-Date Work Commenced:
+Student Name: Adam Crawley
+Student ID: 201490505
+Email: sc21ac@leeds.ac.uk
+Date Work Commenced: 23/04/2023
 *************************************************************************/
 
 #include "compiler.h"
@@ -26,8 +26,12 @@ ParserInfo compile (char* dir_name)
 {
 	ParserInfo p;
 
-	// write your code below
-
+	// Init everything
+	// Find all jack files, for each file
+		// Run lexer/parser
+		// Parser adds to global symbol table
+	
+	// Ensure scope is valid
 
 	p.er = none;
 	return p;
