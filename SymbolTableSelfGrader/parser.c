@@ -596,6 +596,22 @@ ParserInfo type() {
 	return pi;
 }
 
+ParserInfo typeWithSymbol(Symbol* symbol) {
+	ParserInfo pi;
+	Token t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
+
+	if (!isType(t)) {
+		pi.er = illegalType;
+		pi.tk = t;
+		return pi;
+	}
+	
+	setType(symbol, t.lx);
+	pi.er = none;
+	return pi;
+}
+
 // varDeclarStatement -> var type identifier { , identifier } ;
 ParserInfo varDeclarStatement() {
 	ParserInfo pi;
@@ -787,10 +803,70 @@ ParserInfo paramList() {
 	pi.er = none;
 	return pi;
 }
+ParserInfo paramListWithSymbol(Symbol* subroutine) {
+	ParserInfo pi;
+	Token t;
+	
+	// Early return if empty (i.e. no type present, therefore empty paramList)
+	t = PeekNextToken();
+	if (!isType(t)) {
+		pi.er = none;
+		return pi;
+	}
+
+	// type
+	Symbol* firstParam = declaredSymbol(subroutine, kArgument);
+	pi = typeWithSymbol(firstParam);
+	if (pi.er != none) return pi;
+
+	// identifier
+	t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
+	if (t.tp != ID) {
+		pi.er = idExpected;
+		pi.tk = t;
+		return pi;
+	}
+	setIdentifier(firstParam, t);
+
+	// {, type identifier}
+	t = PeekNextToken(); // t is either a comma or not
+	while ((t.tp == SYMBOL && !strcmp(t.lx, ","))) { // Repeat whilst comma
+		// ,
+		t = mGetNextToken();
+		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
+		if (t.tp != SYMBOL  || strcmp(t.lx, ",")) {
+			pi.er = syntaxError;
+			pi.tk = t;
+		}
+
+		// type
+		Symbol* param = declaredSymbol(subroutine, kArgument);
+		pi = typeWithSymbol(param);
+		if (pi.er != none) return pi;
+
+		// identifier
+		t = mGetNextToken();
+		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
+		if (t.tp != ID) {
+			pi.er = idExpected;
+			pi.tk = t;
+			return pi;
+		}
+		setIdentifier(param, t);
+
+		t = PeekNextToken();
+	}
+
+	pi.er = none;
+	return pi;
+}
 
 // subroutineDeclar -> (constructor | function | method) (type|void) identifier (paramList) subroutineBody
-ParserInfo subroutineDeclar() {
+ParserInfo subroutineDeclar(Symbol* class) {
 	ParserInfo pi;
+	Symbol* subroutine = declaredSymbol(class, kSubroutine);
+
 	Token t = mGetNextToken();
 	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 
@@ -805,9 +881,10 @@ ParserInfo subroutineDeclar() {
 	t = PeekNextToken();
 	if (t.tp == RESWORD && !strcmp(t.lx, "void")) {
 		mGetNextToken(); // Consume void
+		setType(subroutine, "void");
 		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	} else {
-		pi = type();
+		pi = typeWithSymbol(subroutine); //pi = type();
 		if (pi.er != none) return pi;
 	}
 
@@ -819,6 +896,8 @@ ParserInfo subroutineDeclar() {
 		pi.tk = t;
 		return pi;
 	}
+	pi = setIdentifier(subroutine, t);
+	if (pi.er != none) return pi;
 
 	// (
 	t = mGetNextToken();
@@ -830,7 +909,7 @@ ParserInfo subroutineDeclar() {
 	}
 
 	// paramList
-	pi = paramList();
+	pi = paramListWithSymbol(subroutine);
 	if (pi.er != none) return pi;
 
 	// )
@@ -851,8 +930,9 @@ ParserInfo subroutineDeclar() {
 }
 
 // classVarDeclar -> (static | field) type identifier {, identifier} ;
-ParserInfo classVarDeclar() {
+ParserInfo classVarDeclar(Symbol* class) {
 	ParserInfo pi;
+	Symbol* classVar = declaredSymbol(class, kVar);
 
 	// (static | field)
 	Token t = mGetNextToken();
@@ -863,8 +943,11 @@ ParserInfo classVarDeclar() {
 		return pi;
 	}
 
+	if (!strcmp(t.lx, "static")) setKind(classVar, kStatic);
+	else if (!strcmp(t.lx, "field")) setKind(classVar, kField);
+
 	// type
-	pi = type();
+	pi = typeWithSymbol(classVar);
 	if (pi.er != none) return pi;
 
 	// identifier
@@ -875,6 +958,8 @@ ParserInfo classVarDeclar() {
 		pi.tk = t;
 		return pi;
 	}
+	pi = setIdentifier(classVar, t);
+	if (pi.er != none) return pi;
 	
 	// {, identifier}
 	t = PeekNextToken();
@@ -896,6 +981,12 @@ ParserInfo classVarDeclar() {
 			return pi;
 		}
 
+		Symbol* newClassVar = declaredSymbol(class, kVar);
+		setType(newClassVar, classVar->type);
+		setKind(newClassVar, classVar->kind);
+		pi = setIdentifier(newClassVar, t);
+		if (pi.er != none) return pi;		
+
 		t = PeekNextToken();
 	}
 
@@ -913,12 +1004,12 @@ ParserInfo classVarDeclar() {
 }
 
 // memberDeclar -> classVarDeclar | subroutineDeclar
-ParserInfo memberDeclar() {
+ParserInfo memberDeclar(Symbol* class) {
 	Token t = PeekNextToken();
 	if (t.tp == RESWORD && (!strcmp(t.lx, "static") || !strcmp(t.lx, "field"))) {
-		return classVarDeclar();
+		return classVarDeclar(class);
 	} else if (t.tp == RESWORD && (!strcmp(t.lx, "constructor") || !strcmp(t.lx, "function") || !strcmp(t.lx, "method"))) {
-		return subroutineDeclar();
+		return subroutineDeclar(class);
 	} else {
 		ParserInfo pi;
 		pi.er = memberDeclarErr;
@@ -949,7 +1040,10 @@ ParserInfo classDeclar() {
 		pi.tk = t;
 		return pi;
 	}
-	insertSymbol(NULL, t, kClass, 0);
+	Symbol* class = declaredSymbol(NULL, kClass);
+	pi = setIdentifier(class, t);
+	if (pi.er != none) return pi;
+	setType(class, "class");
 
 	// {
 	t = mGetNextToken();
@@ -962,7 +1056,7 @@ ParserInfo classDeclar() {
 	// {memberDeclar}
 	t = PeekNextToken();
 	while ((t.tp != SYMBOL || strcmp(t.lx, "}"))) {
-		pi = memberDeclar();
+		pi = memberDeclar(class);
 		if (pi.er != none) return pi;
 		t = PeekNextToken();
 	}

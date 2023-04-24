@@ -17,27 +17,78 @@ Date Work Commenced: 23/04/2023
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "symbols.h"
 
 Symbol* head = NULL;
 Symbol* tail = NULL;
+
+int kStaticNumber = 0;
+int kFieldNumber = 0;
+int kArgumentNumber = 0;
+int kVarNumber = 0;
+int kClassNumber = 0;
+int kSubroutineNumber = 0;
 
 /** SCOPE REFERS TO A SYMBOL DEFINES IT
  * e.g.
  * class symbol (scope = null)
  * function/class attr symbol (scope = class symbol)
  * statement list symbol (scope = function symbol)
+ */
+
+void setKind(Symbol* symbol, Kind kind) {
+    symbol->kind = kind;
+}
+void setType(Symbol* symbol, char type[128]) {
+    strcpy(symbol->type, type);
+}
+
+// Returns status code
+ParserInfo setIdentifier(Symbol* symbol, Token token) {
+    ParserInfo pi;
+    Symbol* existing = getSymbol(token.lx, symbol->scope);
+    if (existing != NULL && existing->scope == symbol->scope) {
+        pi.er = redecIdentifier;
+        pi.tk = token;
+        return pi;
+    }
+    strcpy(symbol->identifier, token.lx);
+    pi.er = none;
+    return pi;
+}
+
+Symbol* declaredSymbol(Symbol* scope, Kind kind) {
+    // Get existing token if exists, otherwise insert
+    // Symbol* obtained = getSymbol(identifier, scope);
+    // if (obtained == NULL) {
+    //     return insertSymbol(scope, kind, 0);
+    // }
+
+    // // Establish redeclarations
+    // obtained->isDeclaredTwice = 1;
+    // return obtained;
+    return insertSymbol(scope, kind, 0);
+}
 
 /**
  * Inserts a new symbol in the given scope (when supplied with parent scope)
 */
-Symbol* insertSymbol(Symbol* scope, Token token, Kind kind, char isPendingDeclaration) {
+Symbol* insertSymbol(Symbol* scope, Kind kind, char isPendingDeclaration) {
     // Assemble Symbol struct
     Symbol* s = malloc(sizeof(Symbol));
-    s->token = token;
-    s->kind = kind;
     s->isPendingDeclaration = isPendingDeclaration;
     s->next = NULL;
+    s->scope = scope;
+
+    // Set number attribute
+    if (kind == kClass) s->number = kClassNumber++;
+    else if (kind == kStatic) s->number = kStaticNumber++;
+    else if (kind == kField) s->number = kFieldNumber++;
+    else if (kind == kArgument) s->number = kArgumentNumber++;
+    else if (kind == kVar) s->number = kVarNumber++;
+    else if (kind == kSubroutine) s->number = kSubroutineNumber++;
+    s->kind = kind;
 
     // Add to linked list
     if (tail == NULL) {
@@ -62,7 +113,7 @@ int canGetSymbol() {
  * Gets a symbol from the symbol table using the current scope
  * Returns NULL if not found
 */
-Symbol* getSymbol(Token token, Symbol* scope) {
+Symbol* getSymbol(char identifier[128], Symbol* scope) {
     // Search through all of current scope, return if found
     // Iteratively go to parent scope of current scope repeat process
     Symbol* currentScope = scope;
@@ -70,7 +121,7 @@ Symbol* getSymbol(Token token, Symbol* scope) {
         Symbol* curr = head;
         while (curr != NULL) {
             // check if correct symbol and in scope
-            if (currentScope == curr->scope && token.lx == curr->token.lx) {
+            if (currentScope == curr->scope && !strcmp(identifier, curr->identifier)) {
                 return curr;
             }
             curr = curr->next;
@@ -101,6 +152,17 @@ void printSymbolTable() {
         curr = next;
     }
 }
+char* kindAsString(Kind kind) {
+    switch (kind) {
+        case kClass: return "kClass";
+        case kStatic: return "kStatic";
+        case kField: return "kField";
+        case kArgument: return "kArgument";
+        case kVar: return "kVar";
+        case kSubroutine: return "kSubroutine";
+        default: return "";
+    }
+} 
 void printSymbol(Symbol* s) {
-    printf("<%s, %i>\n", s->token.lx, s->kind);
+    printf("<%s, %s, %s, %i, %p>\n", s->identifier, s->type, kindAsString(s->kind), s->number, s->scope);
 }

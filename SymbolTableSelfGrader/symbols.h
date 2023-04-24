@@ -11,24 +11,34 @@ typedef enum {
     kField,
     kArgument,
     kVar,
-    kClass
+    kClass,
+    kSubroutine
 } Kind;
 
 typedef struct SymbolT {
-    Token token; // The lexer token for this symbol
+    char identifier[128]; // The lexer token for this symbol
     char type[128]; // e.g. "class", "int", "BankAccount"
     int size; // How much storage do we need (in bytes)
     Kind kind; // What memory area we store this in
     int number; // The index of the kind
     struct SymbolT* scope; // Parent scope
     struct SymbolT* next; // The next linked list item
+
     char isPendingDeclaration; // Has the identifier been declared
+    char isDeclaredTwice; // Has the identifier been declared more than once
 } Symbol;
+
+
+void setKind(Symbol* symbol, Kind kind);
+void setType(Symbol* symbol, char type[128]);
+ParserInfo setIdentifier(Symbol* symbol, Token token);
+
+Symbol* declaredSymbol(Symbol* scope, Kind kind);
 
 /**
  * Inserts a new symbol in the given scope (when supplied with parent scope)
 */
-Symbol* insertSymbol(Symbol* scope, Token token, Kind kind, char isPendingDeclaration);
+Symbol* insertSymbol(Symbol* scope, Kind kind, char isPendingDeclaration);
 
 /**
  * Function to check whether a given symbol, is accessible in the current scope
@@ -39,7 +49,7 @@ int canGetSymbol();
  * Gets a symbol from the symbol table using the current scope
  * Returns NULL if not found
 */
-Symbol* getSymbol(Token token, Symbol* scope);
+Symbol* getSymbol(char identifier[128], Symbol* scope);
 
 /**
  * Frees up all the memory allocated to the symbol table
@@ -47,6 +57,6 @@ Symbol* getSymbol(Token token, Symbol* scope);
 void freeSymbolTable();
 
 void printSymbolTable();
-void printSymbol();
+void printSymbol(Symbol* s);
 
 #endif

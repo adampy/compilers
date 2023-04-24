@@ -77,6 +77,7 @@ int StopCompiler() {
 int main() {
 	InitCompiler();
 	ParserInfo p = compile("Pong");
+	//ParserInfo p = compile("REDECLAR_VAR");
 	printf("--- Overall compilation error ---\n");
 	PrintError(p);
 	StopCompiler();
