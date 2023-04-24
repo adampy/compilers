@@ -25,5 +25,28 @@ typedef struct SymbolT {
     char isPendingDeclaration; // Has the identifier been declared
 } Symbol;
 
+/**
+ * Inserts a new symbol in the given scope (when supplied with parent scope)
+*/
+Symbol* insertSymbol(Symbol* scope, Token token, Kind kind, char isPendingDeclaration);
+
+/**
+ * Function to check whether a given symbol, is accessible in the current scope
+*/
+int canGetSymbol();
+
+/**
+ * Gets a symbol from the symbol table using the current scope
+ * Returns NULL if not found
+*/
+Symbol* getSymbol(Token token, Symbol* scope);
+
+/**
+ * Frees up all the memory allocated to the symbol table
+*/
+void freeSymbolTable();
+
+void printSymbolTable();
+void printSymbol();
 
 #endif

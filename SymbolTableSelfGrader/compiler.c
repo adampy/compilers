@@ -61,8 +61,10 @@ ParserInfo compile(char* dir_name) {
     closedir(dir);
 
 	// Ensure scope is valid
+	printSymbolTable();
 	p.er = none;
 
+	StopParser();
 	return p;
 }
 

@@ -92,3 +92,15 @@ void freeSymbolTable() {
         curr = next;
     }
 }
+
+void printSymbolTable() {
+    Symbol* curr = head;
+    while (curr != NULL) {
+        Symbol* next = curr->next;
+        printSymbol(curr);
+        curr = next;
+    }
+}
+void printSymbol(Symbol* s) {
+    printf("<%s, %i>\n", s->token.lx, s->kind);
+}

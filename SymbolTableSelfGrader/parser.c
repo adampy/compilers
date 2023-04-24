@@ -949,6 +949,7 @@ ParserInfo classDeclar() {
 		pi.tk = t;
 		return pi;
 	}
+	insertSymbol(NULL, t, kClass, 0);
 
 	// {
 	t = mGetNextToken();
@@ -990,6 +991,7 @@ ParserInfo Parse () {
 }
 
 int StopParser () {
+	freeSymbolTable();
 	return 1;
 }
 
