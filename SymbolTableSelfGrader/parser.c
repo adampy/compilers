@@ -24,8 +24,10 @@ Token mGetNextToken() {
 
 // you can declare prototypes of parser functions below
 ParserInfo statementList();
+ParserInfo statementList(Symbol* scope);
 ParserInfo expression();
 ParserInfo expressionList();
+ParserInfo expressionListWithScope(Symbol* scope);
 
 // operand -> integerConstant | identifier [.identifier ] [ [ expression ] | (expressionList ) ] | (expression) | stringLiteral | true | false | null | this
 ParserInfo operand() {
@@ -256,7 +258,7 @@ ParserInfo expression() {
 }
 
 // returnStatemnt -> return [ expression ] ;
-ParserInfo returnStatement() {
+ParserInfo returnStatement(Symbol* scope) {
 	ParserInfo pi;
 	Token t;
 
@@ -326,9 +328,45 @@ ParserInfo expressionList() {
 	pi.er = none;
 	return pi;
 }
+ParserInfo expressionListWithScope(Symbol* scope) {
+	ParserInfo pi;
+	Token t;
+
+	// Early return if no expressions in list
+	t = PeekNextToken();
+	if (!isPossibleExpression(t)) {
+		pi.er = none;
+		return pi;
+	}
+
+	// expression
+	pi = expression(); // At this point, we assume we have an expression in t
+	if (pi.er != none) return pi;
+
+	// {, expression}
+	t = PeekNextToken(); // t is either a comma or not
+	while ((t.tp == SYMBOL && !strcmp(t.lx, ","))) { // Repeat whilst comma
+		// ,
+		t = mGetNextToken();
+		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
+		if (t.tp != SYMBOL  || strcmp(t.lx, ",")) {
+			pi.er = syntaxError;
+			pi.tk = t;
+			return pi;
+		}
+
+		// expression
+		pi = expression();
+		if (pi.er != none) return pi;
+		t = PeekNextToken();
+	}
+
+	pi.er = none;
+	return pi;
+}
 
 // subroutineCall -> identifier [ . identifier ] ( expressionList )
-ParserInfo subroutineCall() {
+ParserInfo subroutineCallWithScope(Symbol* scope) {
 	ParserInfo pi;
 	Token t;
 
@@ -365,7 +403,7 @@ ParserInfo subroutineCall() {
 	}
 
 	// expressionList
-	pi = expressionList();
+	pi = expressionListWithScope(scope);
 	if (pi.er != none) return pi;
 
 	// )
@@ -382,7 +420,7 @@ ParserInfo subroutineCall() {
 }
 
 // doStatement -> do subroutineCall ;
-ParserInfo doStatement() {
+ParserInfo doStatement(Symbol* scope) {
 	ParserInfo pi;
 	Token t;
 
@@ -396,7 +434,7 @@ ParserInfo doStatement() {
 	}
 
 	// subroutineCall
-	pi = subroutineCall();
+	pi = subroutineCallWithScope(scope);
 	if (pi.er != none) return pi;
 
 	// ;
@@ -413,7 +451,7 @@ ParserInfo doStatement() {
 }
 
 // whileStatement -> while ( expression ) { {statement} }
-ParserInfo whileStatement() {
+ParserInfo whileStatement(Symbol* scope) {
 	ParserInfo pi;
 	Token t;
 
@@ -449,7 +487,7 @@ ParserInfo whileStatement() {
 	}
 
 	// { {statement} }
-	pi = statementList();
+	pi = statementList(scope);
 	if (pi.er != none) return pi;
 
 	pi.er = none;
@@ -457,7 +495,7 @@ ParserInfo whileStatement() {
 }
 
 // ifStatement -> if ( expression ) { {statement} } [else { {statement} }]
-ParserInfo ifStatement() {
+ParserInfo ifStatement(Symbol* scope) {
 	ParserInfo pi;
 	Token t;
 
@@ -493,7 +531,7 @@ ParserInfo ifStatement() {
 	}
 
 	// { {statement} }
-	pi = statementList();
+	pi = statementList(scope);
 	if (pi.er != none) return pi;
 
 	// [else { {statement} }]
@@ -501,7 +539,7 @@ ParserInfo ifStatement() {
 	if (t.tp == RESWORD && !strcmp(t.lx, "else")) {
 		mGetNextToken(); // Consume else token
 		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
-		pi = statementList();
+		pi = statementList(scope);
 		if (pi.er != none) return pi;
 	}
 
@@ -510,7 +548,7 @@ ParserInfo ifStatement() {
 }
 
 // letStatement -> let identifier [ [ expression ] ] = expression ;
-ParserInfo letStatement() {
+ParserInfo letStatement(Symbol* scope) {
 	ParserInfo pi;
 	Token t;
 
@@ -528,6 +566,12 @@ ParserInfo letStatement() {
 	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp != ID) {
 		pi.er = idExpected;
+		pi.tk = t;
+		return pi;
+	}
+	Symbol* variable = getSymbol(t.lx, scope);
+	if (variable == NULL) {
+		pi.er = undecIdentifier;
 		pi.tk = t;
 		return pi;
 	}
@@ -595,7 +639,6 @@ ParserInfo type() {
 	pi.er = none;
 	return pi;
 }
-
 ParserInfo typeWithSymbol(Symbol* symbol) {
 	ParserInfo pi;
 	Token t = mGetNextToken();
@@ -613,9 +656,10 @@ ParserInfo typeWithSymbol(Symbol* symbol) {
 }
 
 // varDeclarStatement -> var type identifier { , identifier } ;
-ParserInfo varDeclarStatement() {
+ParserInfo varDeclarstatement(Symbol* scope) {
 	ParserInfo pi;
 	Token t;
+	Symbol* firstVar = declaredSymbol(scope, kVar);
 
 	// var
 	t = mGetNextToken();
@@ -627,7 +671,7 @@ ParserInfo varDeclarStatement() {
 	}
 
 	// type
-	pi = type();
+	pi = typeWithSymbol(firstVar);
 	if (pi.er != none) return pi;
 
 	// identifier
@@ -638,6 +682,7 @@ ParserInfo varDeclarStatement() {
 		pi.tk = t;
 		return pi;
 	}
+	pi = setIdentifier(firstVar, t);
 
 	// {, identifier}
 	t = PeekNextToken();
@@ -659,6 +704,11 @@ ParserInfo varDeclarStatement() {
 			return pi;
 		}
 
+		Symbol* var = declaredSymbol(scope, kVar);
+		setType(var, firstVar->type);
+		pi = setIdentifier(var, t);
+		if (pi.er != none) return pi;
+
 		t = PeekNextToken();
 	}
 
@@ -676,7 +726,7 @@ ParserInfo varDeclarStatement() {
 }
 
 // statement -> varDeclarStatement | letStatement | ifStatement | whileStatement | doStatement | returnStatement
-ParserInfo statement() {
+ParserInfo statement(Symbol* scope) {
 	ParserInfo pi;
 	Token t;
 
@@ -688,17 +738,17 @@ ParserInfo statement() {
 	}
 
 	if (!strcmp(t.lx, "var")) {
-		pi = varDeclarStatement();
+		pi = varDeclarstatement(scope);
 	} else if (!strcmp(t.lx, "let")) {
-		pi = letStatement();
+		pi = letStatement(scope);
 	} else if (!strcmp(t.lx, "if")) {
-		pi = ifStatement();
+		pi = ifStatement(scope);
 	} else if (!strcmp(t.lx, "while")) {
-		pi = whileStatement();
+		pi = whileStatement(scope);
 	} else if (!strcmp(t.lx, "do")) {
-		pi = doStatement();
+		pi = doStatement(scope);
 	} else if (!strcmp(t.lx, "return")) {
-		pi = returnStatement();
+		pi = returnStatement(scope);
 	} else {
 		pi.er = syntaxError; // Is a resword but not a statement
 	}
@@ -710,7 +760,7 @@ ParserInfo statement() {
 }
 
 // statementList -> { {statement} }
-ParserInfo statementList() {
+ParserInfo statementList(Symbol* scope) {
 	ParserInfo pi;
 	Token t;
 
@@ -726,7 +776,7 @@ ParserInfo statementList() {
 	// {statement}
 	t = PeekNextToken();
 	while ((t.tp != SYMBOL || strcmp(t.lx, "}"))) {
-		pi = statement();
+		pi = statement(scope);
 		if (pi.er != none) return pi;
 		t = PeekNextToken();
 	}
@@ -745,65 +795,12 @@ ParserInfo statementList() {
 }
 
 // subroutineBody -> { {statement} }
-ParserInfo subroutineBody() {
-	return statementList();
+ParserInfo subroutineBody(Symbol* subroutine) {
+	return statementList(subroutine);
 }
 
 // paramList -> type identifier {, type identifier} | ε
-ParserInfo paramList() {
-	ParserInfo pi;
-	Token t;
-	
-	// Early return if empty (i.e. no type present, therefore empty paramList)
-	t = PeekNextToken();
-	if (!isType(t)) {
-		pi.er = none;
-		return pi;
-	}
-
-	// type
-	pi = type();
-	if (pi.er != none) return pi;
-
-	// identifier
-	t = mGetNextToken();
-	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
-	if (t.tp != ID) {
-		pi.er = idExpected;
-		pi.tk = t;
-		return pi;
-	}
-
-	// {, type identifier}
-	t = PeekNextToken(); // t is either a comma or not
-	while ((t.tp == SYMBOL && !strcmp(t.lx, ","))) { // Repeat whilst comma
-		// ,
-		t = mGetNextToken();
-		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
-		if (t.tp != SYMBOL  || strcmp(t.lx, ",")) {
-			pi.er = syntaxError;
-			pi.tk = t;
-		}
-
-		// type
-		pi = type();
-		if (pi.er != none) return pi;
-
-		// identifier
-		t = mGetNextToken();
-		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
-		if (t.tp != ID) {
-			pi.er = idExpected;
-			pi.tk = t;
-			return pi;
-		}
-		t = PeekNextToken();
-	}
-
-	pi.er = none;
-	return pi;
-}
-ParserInfo paramListWithSymbol(Symbol* subroutine) {
+ParserInfo paramList(Symbol* subroutine) {
 	ParserInfo pi;
 	Token t;
 	
@@ -909,7 +906,7 @@ ParserInfo subroutineDeclar(Symbol* class) {
 	}
 
 	// paramList
-	pi = paramListWithSymbol(subroutine);
+	pi = paramList(subroutine);
 	if (pi.er != none) return pi;
 
 	// )
@@ -922,7 +919,7 @@ ParserInfo subroutineDeclar(Symbol* class) {
 	}
 
 	// subroutineBody
-	pi = subroutineBody();
+	pi = subroutineBody(subroutine);
 	if (pi.er != none) return pi;
 	
 	pi.er = none;
