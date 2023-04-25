@@ -23,14 +23,12 @@ Token mGetNextToken() {
 }
 
 // you can declare prototypes of parser functions below
-ParserInfo statementList();
 ParserInfo statementList(Symbol* scope);
-ParserInfo expression();
-ParserInfo expressionList();
-ParserInfo expressionListWithScope(Symbol* scope);
+ParserInfo expression(Symbol* scope);
+ParserInfo expressionList(Symbol* scope);
 
 // operand -> integerConstant | identifier [.identifier ] [ [ expression ] | (expressionList ) ] | (expression) | stringLiteral | true | false | null | this
-ParserInfo operand() {
+ParserInfo operand(Symbol* scope) {
 	ParserInfo pi;
 	Token t = mGetNextToken();
 	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
@@ -50,7 +48,7 @@ ParserInfo operand() {
 	// Cases: (expression) 
 	if (t.tp == SYMBOL && !strcmp(t.lx, "(")) {
 		// expression
-		pi = expression();
+		pi = expression(scope);
 		if (pi.er != none) return pi;
 
 		// )
@@ -89,7 +87,7 @@ ParserInfo operand() {
 		if (t.tp == SYMBOL && !strcmp(t.lx, "[")) {
 			mGetNextToken(); // Consume [
 			if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
-			pi = expression();
+			pi = expression(scope);
 			if (pi.er != none) return pi;
 
 			// ]
@@ -105,7 +103,7 @@ ParserInfo operand() {
 		} else if (t.tp == SYMBOL && !strcmp(t.lx, "(")) {
 			mGetNextToken(); // Consume (
 			if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
-			pi = expressionList();
+			pi = expressionList(scope);
 			if (pi.er != none) return pi;
 
 			// )
@@ -128,7 +126,7 @@ ParserInfo operand() {
 }
 
 // factor -> ( - | ~ | ε ) operand
-ParserInfo factor() {
+ParserInfo factor(Symbol* scope) {
 	ParserInfo pi;
 	Token t;
 
@@ -140,17 +138,17 @@ ParserInfo factor() {
 	}
 
 	// operand
-	pi = operand();
+	pi = operand(scope);
 	return pi;
 }
 
 // term -> factor { ( * | / ) factor }
-ParserInfo term() {
+ParserInfo term(Symbol* scope) {
 	ParserInfo pi;
 	Token t;
 
 	// factor
-	pi = factor();
+	pi = factor(scope);
 	if (pi.er != none) return pi;
 
 	// { ( * | / ) factor }
@@ -160,7 +158,7 @@ ParserInfo term() {
 		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 
 		// factor
-		pi = factor();
+		pi = factor(scope);
 		if (pi.er != none) return pi;
 		t = PeekNextToken();
 	}
@@ -170,12 +168,12 @@ ParserInfo term() {
 }
 
 // arithmeticExpression -> term { ( + | - ) term }
-ParserInfo arithmeticExpression() {
+ParserInfo arithmeticExpression(Symbol* scope) {
 	ParserInfo pi;
 	Token t;
 
 	// term
-	pi = term();
+	pi = term(scope);
 	if (pi.er != none) return pi;
 
 	// { ( + | - ) term }
@@ -185,7 +183,7 @@ ParserInfo arithmeticExpression() {
 		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 
 		// term
-		pi = term();
+		pi = term(scope);
 		if (pi.er != none) return pi;
 		t = PeekNextToken();
 	}
@@ -195,12 +193,12 @@ ParserInfo arithmeticExpression() {
 }
 
 // relationalExpression -> arithmeticExpression { ( = | > | < ) arithmeticExpression }
-ParserInfo relationalExpression() {
+ParserInfo relationalExpression(Symbol* scope) {
 	ParserInfo pi;
 	Token t;
 
 	// arithmeticExpression
-	pi = arithmeticExpression();
+	pi = arithmeticExpression(scope);
 	if (pi.er != none) return pi;
 
 	// { ( = | > | < ) arithmeticExpression }
@@ -210,7 +208,7 @@ ParserInfo relationalExpression() {
 		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 
 		// arithmeticExpression
-		pi = arithmeticExpression();
+		pi = arithmeticExpression(scope);
 		if (pi.er != none) return pi;
 		t = PeekNextToken();
 	}
@@ -232,13 +230,14 @@ int isPossibleExpression(Token t) {
 		(t.tp == SYMBOL && !strcmp(t.lx, "-")) || 
 		(t.tp == SYMBOL && !strcmp(t.lx, "~"));
 }
+
 // expression -> relationalExpression { ( & | | ) relationalExpression }
-ParserInfo expression() {
+ParserInfo expression(Symbol* scope) {
 	ParserInfo pi;
 	Token t;
 
 	// relationalExpression
-	pi = relationalExpression();
+	pi = relationalExpression(scope);
 	if (pi.er != none) return pi;
 
 	// { ( & | | ) relationalExpression }
@@ -248,7 +247,7 @@ ParserInfo expression() {
 		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 
 		// relationalExpression
-		pi = relationalExpression();
+		pi = relationalExpression(scope);
 		if (pi.er != none) return pi;
 		t = PeekNextToken();
 	}
@@ -274,7 +273,7 @@ ParserInfo returnStatement(Symbol* scope) {
 	// [ expression ] ;
 	t = PeekNextToken();
 	if (isPossibleExpression(t)) {
-		pi = expression();
+		pi = expression(scope);
 		if (pi.er != none) return pi;
 	}
 
@@ -292,7 +291,7 @@ ParserInfo returnStatement(Symbol* scope) {
 }
 
 // expressionList -> expression { , expression } | ε
-ParserInfo expressionList() {
+ParserInfo expressionList(Symbol* scope) {
 	ParserInfo pi;
 	Token t;
 
@@ -304,7 +303,7 @@ ParserInfo expressionList() {
 	}
 
 	// expression
-	pi = expression(); // At this point, we assume we have an expression in t
+	pi = expression(scope); // At this point, we assume we have an expression in t
 	if (pi.er != none) return pi;
 
 	// {, expression}
@@ -320,43 +319,7 @@ ParserInfo expressionList() {
 		}
 
 		// expression
-		pi = expression();
-		if (pi.er != none) return pi;
-		t = PeekNextToken();
-	}
-
-	pi.er = none;
-	return pi;
-}
-ParserInfo expressionListWithScope(Symbol* scope) {
-	ParserInfo pi;
-	Token t;
-
-	// Early return if no expressions in list
-	t = PeekNextToken();
-	if (!isPossibleExpression(t)) {
-		pi.er = none;
-		return pi;
-	}
-
-	// expression
-	pi = expression(); // At this point, we assume we have an expression in t
-	if (pi.er != none) return pi;
-
-	// {, expression}
-	t = PeekNextToken(); // t is either a comma or not
-	while ((t.tp == SYMBOL && !strcmp(t.lx, ","))) { // Repeat whilst comma
-		// ,
-		t = mGetNextToken();
-		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
-		if (t.tp != SYMBOL  || strcmp(t.lx, ",")) {
-			pi.er = syntaxError;
-			pi.tk = t;
-			return pi;
-		}
-
-		// expression
-		pi = expression();
+		pi = expression(scope);
 		if (pi.er != none) return pi;
 		t = PeekNextToken();
 	}
@@ -366,7 +329,7 @@ ParserInfo expressionListWithScope(Symbol* scope) {
 }
 
 // subroutineCall -> identifier [ . identifier ] ( expressionList )
-ParserInfo subroutineCallWithScope(Symbol* scope) {
+ParserInfo subroutineCall(Symbol* scope) {
 	ParserInfo pi;
 	Token t;
 
@@ -403,7 +366,7 @@ ParserInfo subroutineCallWithScope(Symbol* scope) {
 	}
 
 	// expressionList
-	pi = expressionListWithScope(scope);
+	pi = expressionList(scope);
 	if (pi.er != none) return pi;
 
 	// )
@@ -434,7 +397,7 @@ ParserInfo doStatement(Symbol* scope) {
 	}
 
 	// subroutineCall
-	pi = subroutineCallWithScope(scope);
+	pi = subroutineCall(scope);
 	if (pi.er != none) return pi;
 
 	// ;
@@ -474,7 +437,7 @@ ParserInfo whileStatement(Symbol* scope) {
 	}
 
 	// expression
-	pi = expression();
+	pi = expression(scope);
 	if (pi.er != none) return pi;
 
 	// )
@@ -518,7 +481,7 @@ ParserInfo ifStatement(Symbol* scope) {
 	}
 
 	// expression
-	pi = expression();
+	pi = expression(scope);
 	if (pi.er != none) return pi;
 
 	// )
@@ -581,7 +544,7 @@ ParserInfo letStatement(Symbol* scope) {
 	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp == SYMBOL && !strcmp(t.lx, "[")) {
 		// expression
-		pi = expression();
+		pi = expression(scope);
 		if (pi.er != none) return pi;
 
 		// ]
@@ -605,7 +568,7 @@ ParserInfo letStatement(Symbol* scope) {
 	}
 
 	// expression
-	pi = expression();
+	pi = expression(scope);
 	if (pi.er != none) return pi;
 
 	// ;
@@ -1072,16 +1035,16 @@ ParserInfo classDeclar() {
 }
 
 
-int InitParser (char* file_name) {
+int InitParser(char* file_name) {
 	return 1;
 }
 
-ParserInfo Parse () {
+ParserInfo Parse() {
 	ParserInfo pi = classDeclar();
 	return pi;
 }
 
-int StopParser () {
+int StopParser() {
 	freeSymbolTable();
 	return 1;
 }

@@ -59,16 +59,19 @@ ParserInfo setIdentifier(Symbol* symbol, Token token) {
 }
 
 Symbol* declaredSymbol(Symbol* scope, Kind kind) {
-    // Get existing token if exists, otherwise insert
-    // Symbol* obtained = getSymbol(identifier, scope);
-    // if (obtained == NULL) {
-    //     return insertSymbol(scope, kind, 0);
-    // }
-
-    // // Establish redeclarations
-    // obtained->isDeclaredTwice = 1;
-    // return obtained;
     return insertSymbol(scope, kind, 0);
+}
+
+Symbol* usedSymbol(Symbol* scope, char identifier[128], Kind kind) {
+    // If we use a symbol that hasn't been declared then insert it
+    Symbol* obtained = getSymbol(identifier, scope);
+    if (obtained == NULL) {
+        return insertSymbol(scope, kind, 1);
+    }
+
+    // Establish redeclarations
+    obtained->isDeclaredTwice = 1;
+    return obtained;
 }
 
 /**
@@ -164,5 +167,5 @@ char* kindAsString(Kind kind) {
     }
 } 
 void printSymbol(Symbol* s) {
-    printf("<%s, %s, %s, %i, %p>\n", s->identifier, s->type, kindAsString(s->kind), s->number, s->scope);
+    printf("<%s, %s, %s, %i, %i, %p>\n", s->identifier, s->type, kindAsString(s->kind), s->number, s->isPendingDeclaration, s->scope);
 }
