@@ -65,6 +65,8 @@ ParserInfo compile(char* dir_name) {
 	// Ensure scope is valid
 	printSymbolTable();
 
+	// Sort out kType numbering
+
 	StopParser();
 	return p;
 }

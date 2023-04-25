@@ -357,12 +357,15 @@ ParserInfo subroutineCall(Symbol* scope) {
 	ParserInfo pi;
 	Token t;
 
+	// identifier(expressionList) -> function in this class (either defined or not)
+	// identifier.identifier(expressionList)
+
 	// identifier
-	t = mGetNextToken();
+	Token externalClassToken = mGetNextToken();
 	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
-	if (t.tp != ID) {
+	if (externalClassToken.tp != ID) {
 		pi.er = idExpected;
-		pi.tk = t;
+		pi.tk = externalClassToken;
 		return pi;
 	}
 
@@ -378,8 +381,22 @@ ParserInfo subroutineCall(Symbol* scope) {
 			pi.tk = t;
 			return pi;
 		}
+
+		// Add external class call to symbol table
+		Symbol* externalSymbol = usedExternalSymbol(scope, externalClassToken.lx, t.lx);
+		setKind(externalSymbol, kSubroutine);
+		setType(externalSymbol, "void");
+
 		t = mGetNextToken(); // Move onwards to ( if we had .
 		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
+	} else {
+		// Class defined method (either defined or not) (check this class' scope)
+		Symbol* variable = getSymbol(externalClassToken.lx, scope);
+		if (variable == NULL) {
+			Symbol* undefinedMethod = usedExternalSymbol(scope, scope->scope->identifier, externalClassToken.lx);
+			setKind(undefinedMethod, kSubroutine);
+			setType(undefinedMethod, "void");
+		}
 	}
 	
 	// (
@@ -864,7 +881,6 @@ ParserInfo paramList(Symbol* subroutine) {
 // subroutineDeclar -> (constructor | function | method) (type|void) identifier (paramList) subroutineBody
 ParserInfo subroutineDeclar(Symbol* class) {
 	ParserInfo pi;
-	Symbol* subroutine = declaredSymbol(class, kSubroutine);
 
 	Token t = mGetNextToken();
 	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
@@ -877,13 +893,14 @@ ParserInfo subroutineDeclar(Symbol* class) {
 	}
 
 	// (type|void)
+	char typeString[128] = {0};
 	t = PeekNextToken();
 	if (t.tp == RESWORD && !strcmp(t.lx, "void")) {
 		mGetNextToken(); // Consume void
-		setType(subroutine, "void");
+		strcpy(typeString, "void");
 		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	} else {
-		pi = typeWithSymbol(subroutine); //pi = type();
+		pi = typeWithString(typeString); //typeWithSymbol(subroutine); //pi = type();
 		if (pi.er != none) return pi;
 	}
 
@@ -895,8 +912,19 @@ ParserInfo subroutineDeclar(Symbol* class) {
 		pi.tk = t;
 		return pi;
 	}
-	pi = setIdentifier(subroutine, t);
 	if (pi.er != none) return pi;
+
+	Symbol* subroutine = getSymbol(t.lx, class);
+	if (subroutine == NULL) {
+		subroutine = declaredSymbol(class, kSubroutine);
+		pi = setIdentifier(subroutine, t);
+	} else if (subroutine != NULL && !subroutine->isPendingDeclaration) {
+		pi.er = redecIdentifier;
+		pi.tk = t;
+	}
+	if (pi.er != none) return pi;
+	subroutine->isPendingDeclaration = 0;
+	setType(subroutine, typeString);
 
 	// (
 	t = mGetNextToken();
@@ -906,6 +934,7 @@ ParserInfo subroutineDeclar(Symbol* class) {
 		pi.tk = t;
 		return pi;
 	}
+
 
 	// paramList
 	pi = paramList(subroutine);
@@ -967,7 +996,6 @@ ParserInfo classVarDeclar(Symbol* class) {
 		pi.er = redecIdentifier;
 		pi.tk = t;
 	}
-
 	if (pi.er != none) return pi;
 	classVar->isPendingDeclaration = 0;
 	setType(classVar, typeString);
