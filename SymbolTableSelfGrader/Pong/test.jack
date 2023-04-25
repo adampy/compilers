@@ -1,0 +1,18 @@
+class Test {
+
+    field int y, x;
+
+    function void testFunction() {
+        var PongGame game;
+        do PongGame.newInstance();
+        let game = PongGame.getInstance();
+        do game.run();
+        do game.dispose();
+
+        var TestClass test;
+        var int adam;
+        let adam = test.functionName();
+
+        return;
+    }
+}

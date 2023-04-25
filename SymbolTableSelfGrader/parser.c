@@ -66,9 +66,14 @@ ParserInfo operand(Symbol* scope) {
 
 	// Cases: identifier [ . identifier ] [ [ expression ] | ( expressionList ) ]
 	if (t.tp == ID) {
+		char firstIdentifier[128] = {0};
+		strcpy(firstIdentifier, t.lx);
+		Token identifier = t;
+
 		t = PeekNextToken(); // t is either . [ or (
 
 		// [ . identifier ]
+		char external[128] = {0}; // external is the attr/method
 		if (t.tp == SYMBOL && !strcmp(t.lx, ".")) {
 			// . identifier
 			mGetNextToken(); // Consume the .
@@ -80,11 +85,30 @@ ParserInfo operand(Symbol* scope) {
 				pi.tk = t;
 				return pi;
 			}
+			strcpy(external, t.lx);
 			t = PeekNextToken(); // Move onwards to [ or ( if we had .
+		}
+
+		if (!strcmp(external, "abs")) {
+			printf("here");
+		}
+
+		// Ensure that identifier exists if variable (not external class method/attr)
+		Symbol* externalSymbol; // externalSymbol is the attr/method
+		if (external[0] == '\0') {
+			Symbol* variable = getSymbol(firstIdentifier, scope);
+			if (variable == NULL) {
+				pi.er = undecIdentifier;
+				pi.tk = identifier;
+				return pi;
+			}
+		} else {
+			externalSymbol = usedExternalSymbol(scope, identifier.lx, external);
 		}
 
 		// [ [ expression ] | ( expressionList ) ]
 		if (t.tp == SYMBOL && !strcmp(t.lx, "[")) {
+			if (external[0] != '\0') setKind(externalSymbol, kStatic);
 			mGetNextToken(); // Consume [
 			if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 			pi = expression(scope);
@@ -98,9 +122,8 @@ ParserInfo operand(Symbol* scope) {
 				pi.tk = t;
 				return pi;
 			}
-
-
 		} else if (t.tp == SYMBOL && !strcmp(t.lx, "(")) {
+			if (external[0] != '\0') setKind(externalSymbol, kSubroutine);
 			mGetNextToken(); // Consume (
 			if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 			pi = expressionList(scope);
@@ -115,6 +138,7 @@ ParserInfo operand(Symbol* scope) {
 				return pi;
 			}
 		}
+
 		pi.er = none;
 		return pi;
 	}
@@ -617,6 +641,21 @@ ParserInfo typeWithSymbol(Symbol* symbol) {
 	pi.er = none;
 	return pi;
 }
+ParserInfo typeWithString(char typeString[128]) {
+	ParserInfo pi;
+	Token t = mGetNextToken();
+	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
+
+	if (!isType(t)) {
+		pi.er = illegalType;
+		pi.tk = t;
+		return pi;
+	}
+	
+	strcpy(typeString, t.lx);
+	pi.er = none;
+	return pi;
+}
 
 // varDeclarStatement -> var type identifier { , identifier } ;
 ParserInfo varDeclarstatement(Symbol* scope) {
@@ -892,7 +931,6 @@ ParserInfo subroutineDeclar(Symbol* class) {
 // classVarDeclar -> (static | field) type identifier {, identifier} ;
 ParserInfo classVarDeclar(Symbol* class) {
 	ParserInfo pi;
-	Symbol* classVar = declaredSymbol(class, kVar);
 
 	// (static | field)
 	Token t = mGetNextToken();
@@ -903,11 +941,13 @@ ParserInfo classVarDeclar(Symbol* class) {
 		return pi;
 	}
 
-	if (!strcmp(t.lx, "static")) setKind(classVar, kStatic);
-	else if (!strcmp(t.lx, "field")) setKind(classVar, kField);
+	char isStatic = 0;
+	if (!strcmp(t.lx, "static")) isStatic = 1;
+	else if (!strcmp(t.lx, "field")) isStatic = 0;
 
 	// type
-	pi = typeWithSymbol(classVar);
+	char typeString[128] = {0};
+	pi = typeWithString(typeString);
 	if (pi.er != none) return pi;
 
 	// identifier
@@ -918,9 +958,20 @@ ParserInfo classVarDeclar(Symbol* class) {
 		pi.tk = t;
 		return pi;
 	}
-	pi = setIdentifier(classVar, t);
-	if (pi.er != none) return pi;
 	
+	Symbol* classVar = getSymbol(t.lx, class);
+	if (classVar == NULL) {
+		classVar = declaredSymbol(class, isStatic ? kStatic : kField);
+		pi = setIdentifier(classVar, t);
+	} else if (classVar != NULL && !classVar->isPendingDeclaration) {
+		pi.er = redecIdentifier;
+		pi.tk = t;
+	}
+
+	if (pi.er != none) return pi;
+	classVar->isPendingDeclaration = 0;
+	setType(classVar, typeString);
+
 	// {, identifier}
 	t = PeekNextToken();
 	while ((t.tp != SYMBOL || strcmp(t.lx, ";"))) {
@@ -941,11 +992,24 @@ ParserInfo classVarDeclar(Symbol* class) {
 			return pi;
 		}
 
-		Symbol* newClassVar = declaredSymbol(class, kVar);
-		setType(newClassVar, classVar->type);
-		setKind(newClassVar, classVar->kind);
-		pi = setIdentifier(newClassVar, t);
-		if (pi.er != none) return pi;		
+		Symbol* newClassVar = getSymbol(t.lx, class);
+		if (newClassVar == NULL) {
+			newClassVar = declaredSymbol(class, isStatic ? kStatic : kField);
+			pi = setIdentifier(newClassVar, t);
+		} else if (newClassVar != NULL && !newClassVar->isPendingDeclaration) {
+			pi.er = redecIdentifier;
+			pi.tk = t;
+		}
+
+		if (pi.er != none) return pi;
+		newClassVar->isPendingDeclaration = 0;
+		setType(newClassVar, typeString);
+
+		// Symbol* newClassVar = declaredSymbol(class, kVar);
+		// setType(newClassVar, classVar->type);
+		// setKind(newClassVar, classVar->kind);
+		// pi = setIdentifier(newClassVar, t);
+		// if (pi.er != none) return pi;		
 
 		t = PeekNextToken();
 	}
@@ -1000,11 +1064,19 @@ ParserInfo classDeclar() {
 		pi.tk = t;
 		return pi;
 	}
-	Symbol* class = declaredSymbol(NULL, kClass);
-	pi = setIdentifier(class, t);
-	if (pi.er != none) return pi;
-	setType(class, "class");
 
+	Symbol* class = getSymbol(t.lx, NULL);
+	if (class == NULL) {
+		class = declaredSymbol(NULL, kClass);
+		setType(class, "class");
+		pi = setIdentifier(class, t);
+	} else if (class != NULL && !class->isPendingDeclaration) {
+		pi.er = redecIdentifier;
+		pi.tk = t;
+	}
+	class->isPendingDeclaration = 0;
+	if (pi.er != none) return pi;
+	
 	// {
 	t = mGetNextToken();
 	if (t.tp != SYMBOL || strcmp(t.lx, "{")) {

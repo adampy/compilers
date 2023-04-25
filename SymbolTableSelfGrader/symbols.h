@@ -34,6 +34,9 @@ void setType(Symbol* symbol, char type[128]);
 ParserInfo setIdentifier(Symbol* symbol, Token token);
 
 Symbol* declaredSymbol(Symbol* scope, Kind kind);
+// Symbol* usedSymbol(Symbol* scope, char identifier[128]);
+Symbol* usedIdentifier(Symbol* scope, char identifier[128]);
+Symbol* usedExternalSymbol(Symbol* scope, char className[128], char identifier[128]);
 
 /**
  * Inserts a new symbol in the given scope (when supplied with parent scope)

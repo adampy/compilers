@@ -27,6 +27,7 @@ int InitCompiler() {
 
 ParserInfo compile(char* dir_name) {
 	ParserInfo p;
+	p.er = none;
 	DIR *dir;
     struct dirent *de;
 
@@ -55,14 +56,14 @@ ParserInfo compile(char* dir_name) {
 		//PrintError(pi);
 		//printf("Completed parsing!\n");
 		if (pi.er != none) {
-			return pi;
+			p = pi;
+			break;//return pi;
 		}
     }
     closedir(dir);
 
 	// Ensure scope is valid
 	printSymbolTable();
-	p.er = none;
 
 	StopParser();
 	return p;

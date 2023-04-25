@@ -48,7 +48,9 @@ void setType(Symbol* symbol, char type[128]) {
 ParserInfo setIdentifier(Symbol* symbol, Token token) {
     ParserInfo pi;
     Symbol* existing = getSymbol(token.lx, symbol->scope);
-    if (existing != NULL && existing->scope == symbol->scope) {
+    if (existing != NULL && existing->isPendingDeclaration) {
+        existing->isPendingDeclaration = 0;
+    } else if (existing != NULL && existing->scope == symbol->scope) {
         pi.er = redecIdentifier;
         pi.tk = token;
         return pi;
@@ -57,22 +59,64 @@ ParserInfo setIdentifier(Symbol* symbol, Token token) {
     pi.er = none;
     return pi;
 }
+ParserInfo setIdentifierByString(Symbol* symbol, char identifier[128]) {
+    ParserInfo pi;
+    Symbol* existing = getSymbol(identifier, symbol->scope);
+    if (existing != NULL && existing->isPendingDeclaration) {
+        existing->isPendingDeclaration = 0;
+    }
+    strcpy(symbol->identifier, identifier);
+    pi.er = none;
+    return pi;
+}
 
 Symbol* declaredSymbol(Symbol* scope, Kind kind) {
     return insertSymbol(scope, kind, 0);
 }
 
-Symbol* usedSymbol(Symbol* scope, char identifier[128], Kind kind) {
-    // If we use a symbol that hasn't been declared then insert it
-    Symbol* obtained = getSymbol(identifier, scope);
-    if (obtained == NULL) {
-        return insertSymbol(scope, kind, 1);
+// Symbol* usedSymbol(Symbol* scope, char identifier[128]) {
+//     // If we use a symbol that hasn't been declared then insert it
+//     Symbol* obtained = getSymbol(identifier, scope);
+//     if (obtained == NULL) {
+//         return insertSymbol(scope, kind, 1);
+//     }
+
+//     // Establish redeclarations
+//     obtained->isDeclaredTwice = 1;
+//     return obtained;
+// }
+
+
+Symbol* usedExternalSymbol(Symbol* scope, char identifier1[128], char identifier2[128]) {
+    // identifier1.identifier2
+    // identifier1.identifer2[expression]
+    // identifier1.identifier2(expressionList)
+
+    // Check if local variable that is of userdefined type
+    Symbol* existing = getSymbol(identifier1, scope);
+    char className[128] = {0};
+    if (existing != NULL) {
+        strcpy(className, existing->type);
+    } else {
+        strcpy(className, identifier1);
     }
 
-    // Establish redeclarations
-    obtained->isDeclaredTwice = 1;
-    return obtained;
+    // Now we have class/type name, check for attr existing in that class' scope, otherwise add it
+    Symbol* classScope = getSymbol(className, NULL); // See if class exists
+    if (classScope == NULL) {
+        // Then class not yet defined, add pending declaration for class and attr
+        classScope = insertSymbol(NULL, kClass, 1);
+        setIdentifierByString(classScope, className);
+        setType(classScope, "class");
+    }
+    Symbol* attrScope = getSymbol(identifier2, classScope); // Check if attribute exists
+    if (attrScope == NULL) {
+        attrScope = insertSymbol(classScope, kVar, 1);
+        setIdentifierByString(attrScope, identifier2);
+    }
+    return attrScope;
 }
+
 
 /**
  * Inserts a new symbol in the given scope (when supplied with parent scope)
@@ -118,8 +162,20 @@ int canGetSymbol() {
 */
 Symbol* getSymbol(char identifier[128], Symbol* scope) {
     // Search through all of current scope, return if found
-    // Iteratively go to parent scope of current scope repeat process
+    // Iteratively go to parent scope of current scope repeat process    
     Symbol* currentScope = scope;
+    
+    if (currentScope == NULL) { // Then we are looking for classes
+        Symbol* curr = head;
+        while (curr != NULL) {
+            // check if correct symbol and in scope
+            if (curr->scope == NULL && !strcmp(identifier, curr->identifier)) {
+                return curr;
+            }
+            curr = curr->next;
+        }
+    }
+
     while (currentScope != NULL) {
         Symbol* curr = head;
         while (curr != NULL) {
@@ -146,15 +202,6 @@ void freeSymbolTable() {
         curr = next;
     }
 }
-
-void printSymbolTable() {
-    Symbol* curr = head;
-    while (curr != NULL) {
-        Symbol* next = curr->next;
-        printSymbol(curr);
-        curr = next;
-    }
-}
 char* kindAsString(Kind kind) {
     switch (kind) {
         case kClass: return "kClass";
@@ -166,6 +213,17 @@ char* kindAsString(Kind kind) {
         default: return "";
     }
 } 
+void printSymbolTable() {
+    Symbol* curr = head;
+    while (curr != NULL) {
+        Symbol* next = curr->next;
+        if (curr->kind == kClass) {
+            printf("------------\n");
+        }
+        printSymbol(curr);
+        curr = next;
+    }
+}
 void printSymbol(Symbol* s) {
-    printf("<%s, %s, %s, %i, %i, %p>\n", s->identifier, s->type, kindAsString(s->kind), s->number, s->isPendingDeclaration, s->scope);
+    printf("<%s, %s, %s, n%i, p%i, %p (%s)>\n", s->identifier, s->type, kindAsString(s->kind), s->number, s->isPendingDeclaration, s->scope, s->scope->identifier);
 }
