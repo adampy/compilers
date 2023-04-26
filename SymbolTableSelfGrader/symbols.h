@@ -16,6 +16,7 @@ typedef enum {
 } Kind;
 
 typedef struct SymbolT {
+    Token token;
     char identifier[128]; // The lexer token for this symbol
     char type[128]; // e.g. "class", "int", "BankAccount"
     int size; // How much storage do we need (in bytes)
@@ -31,12 +32,14 @@ typedef struct SymbolT {
 
 void setKind(Symbol* symbol, Kind kind);
 void setType(Symbol* symbol, char type[128]);
+void setToken(Symbol* symbol, Token token);
 ParserInfo setIdentifier(Symbol* symbol, Token token);
+ParserInfo setIdentifierByString(Symbol* symbol, char identifier[128]);
 
 Symbol* declaredSymbol(Symbol* scope, Kind kind);
 // Symbol* usedSymbol(Symbol* scope, char identifier[128]);
 Symbol* usedIdentifier(Symbol* scope, char identifier[128]);
-Symbol* usedExternalSymbol(Symbol* scope, char className[128], char identifier[128]);
+Symbol* usedExternalSymbol(Symbol* scope, Token t1, Token t2);
 
 /**
  * Inserts a new symbol in the given scope (when supplied with parent scope)
@@ -47,6 +50,8 @@ Symbol* insertSymbol(Symbol* scope, Kind kind, char isPendingDeclaration);
  * Function to check whether a given symbol, is accessible in the current scope
 */
 int canGetSymbol();
+
+Symbol* getFirstPendingDeclaration();
 
 /**
  * Gets a symbol from the symbol table using the current scope
@@ -61,5 +66,7 @@ void freeSymbolTable();
 
 void printSymbolTable();
 void printSymbol(Symbol* s);
+
+void InitSymbols();
 
 #endif

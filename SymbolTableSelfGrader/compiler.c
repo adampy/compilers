@@ -20,8 +20,20 @@ Date Work Commenced: 23/04/2023
 #include "compiler.h"
 #include "SymbolGrader.h"
 
+#define NUM_STANDARD_LIBS 8
+char* standardLibraries[NUM_STANDARD_LIBS] = {
+	"Math.jack",
+	"Memory.jack",
+	"Screen.jack",
+	"Output.jack",
+	"Keyboard.jack",
+	"String.jack",
+	"Array.jack",
+	"Sys.jack"
+};
 
 int InitCompiler() {
+	InitSymbols();
 	return 1;
 }
 
@@ -50,28 +62,48 @@ ParserInfo compile(char* dir_name) {
 		strcat(fullFilename, filename);
 
 		// Init lexer and run parser
-		//printf("--- Parsing %s ---\n", fullFilename);
 		InitLexer(fullFilename);
-		ParserInfo pi = Parse(); // Parser adds to global symbol table
-		//PrintError(pi);
-		//printf("Completed parsing!\n");
-		if (pi.er != none) {
-			p = pi;
-			break;//return pi;
+		p = Parse(); // Parser adds to global symbol table
+		if (p.er != none) {
+			//PrintError(pi);
+			break;
 		}
     }
     closedir(dir);
 
-	// Ensure scope is valid
-	printSymbolTable();
+	if (p.er != none) {
+		printf("ere");
+		return p;
+	}
+
+	// Import standard libraries
+	for (int i = 0; i < NUM_STANDARD_LIBS; i++) {
+		InitLexer(standardLibraries[i]);
+		ParserInfo pi = Parse();
+		if (pi.er != none) {
+			p = pi;
+			return pi;
+		}
+	}
+
+	// If there are any pending declarations at this point then raise undefined
+	Symbol* pending = getFirstPendingDeclaration();
+	if (pending != NULL) {
+		// printf("----------\n");
+		// printSymbol(pending);
+		// PrintToken(pending->token);
+		p.er = undecIdentifier;
+		p.tk = pending->token;
+		return p;
+	}
 
 	// Sort out kType numbering
 
-	StopParser();
 	return p;
 }
 
 int StopCompiler() {
+	StopParser();
 	return 1;
 }
 
@@ -79,8 +111,9 @@ int StopCompiler() {
 #ifndef TEST_COMPILER
 int main() {
 	InitCompiler();
-	ParserInfo p = compile("Pong");
-	//ParserInfo p = compile("REDECLAR_VAR");
+	//ParserInfo p = compile("Pong");
+	ParserInfo p = compile("UNDECLAR_CLASS");
+	printSymbolTable();
 	printf("--- Overall compilation error ---\n");
 	PrintError(p);
 	StopCompiler();

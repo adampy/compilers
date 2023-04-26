@@ -197,6 +197,9 @@ int t_compiler ()
 		InitCompiler ();
 		fail = 0;
 		ParserInfo p = compile (testFiles[j]);
+		if (j == 7) {
+			printSymbolTable();
+		}
 		if (p.er != correctInfo[j].er)
 			fail = 1;
 		else if (correctInfo[j].er != none && (p.tk.tp != correctInfo[j].tk.tp || p.tk.ln != correctInfo[j].tk.ln || (correctInfo[j].er != lexerErr && strcmp (correctInfo[j].tk.lx , p.tk.lx))) )
@@ -222,7 +225,6 @@ int t_compiler ()
 		AddTestString (m, 10, s, 1);
 	return m;
 }
-
 
 #ifdef TEST_COMPILER
 int main (int argc, char* argv[])

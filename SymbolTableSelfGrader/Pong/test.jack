@@ -11,7 +11,7 @@ class Test {
 
         var TestClass test;
         var int adam;
-        let adam = test.functionName();
+        //let adam = test.functionName();
 
         return;
     }

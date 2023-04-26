@@ -6,6 +6,8 @@
 #include "parser.h"
 #include "symbols.h"
 
+# include "SymbolGrader.h" // TODO: REMOVE THIS
+
 // Modified get token and peek token
 ParserInfo lexerErrorInfo;
 
@@ -73,6 +75,7 @@ ParserInfo operand(Symbol* scope) {
 		t = PeekNextToken(); // t is either . [ or (
 
 		// [ . identifier ]
+		Token possibleMethod;
 		char external[128] = {0}; // external is the attr/method
 		if (t.tp == SYMBOL && !strcmp(t.lx, ".")) {
 			// . identifier
@@ -86,11 +89,8 @@ ParserInfo operand(Symbol* scope) {
 				return pi;
 			}
 			strcpy(external, t.lx);
+			possibleMethod = t;
 			t = PeekNextToken(); // Move onwards to [ or ( if we had .
-		}
-
-		if (!strcmp(external, "abs")) {
-			printf("here");
 		}
 
 		// Ensure that identifier exists if variable (not external class method/attr)
@@ -103,7 +103,7 @@ ParserInfo operand(Symbol* scope) {
 				return pi;
 			}
 		} else {
-			externalSymbol = usedExternalSymbol(scope, identifier.lx, external);
+			externalSymbol = usedExternalSymbol(scope, identifier, possibleMethod);
 		}
 
 		// [ [ expression ] | ( expressionList ) ]
@@ -383,7 +383,7 @@ ParserInfo subroutineCall(Symbol* scope) {
 		}
 
 		// Add external class call to symbol table
-		Symbol* externalSymbol = usedExternalSymbol(scope, externalClassToken.lx, t.lx);
+		Symbol* externalSymbol = usedExternalSymbol(scope, externalClassToken, t);
 		setKind(externalSymbol, kSubroutine);
 		setType(externalSymbol, "void");
 
@@ -393,9 +393,14 @@ ParserInfo subroutineCall(Symbol* scope) {
 		// Class defined method (either defined or not) (check this class' scope)
 		Symbol* variable = getSymbol(externalClassToken.lx, scope);
 		if (variable == NULL) {
-			Symbol* undefinedMethod = usedExternalSymbol(scope, scope->scope->identifier, externalClassToken.lx);
+			//printf("# usedExternalSymbol(scope: %s, scope->scope->token: %s, externalClassToken: %s)\n", scope->identifier, scope->scope->token.lx, externalClassToken.lx);
+			//PrintToken(scope->scope->token);
+			//printSymbol(scope->scope);
+			Symbol* undefinedMethod = usedExternalSymbol(scope, scope->scope->token, externalClassToken);
 			setKind(undefinedMethod, kSubroutine);
 			setType(undefinedMethod, "void");
+			//printSymbol(undefinedMethod);
+			//printf("-----\n");
 		}
 	}
 	
@@ -668,6 +673,20 @@ ParserInfo typeWithString(char typeString[128]) {
 		pi.tk = t;
 		return pi;
 	}
+
+	// Then we have a custom class, make sure its defined and if not add as pending
+	if (strcmp(t.lx, "int") && strcmp(t.lx, "boolean") && strcmp(t.lx, "char")) {
+		Symbol* classScope = getSymbol(t.lx, NULL); // See if class exists
+		//printf("does %s exist: %p\n", t.lx, classScope);
+		if (classScope == NULL) {
+			// Then class not yet defined, add pending declaration for class and attr
+			classScope = insertSymbol(NULL, kClass, 1);
+			//setIdentifierByString(classScope, typeString);
+			setType(classScope, "class");
+			setIdentifier(classScope, t);
+			classScope->isPendingDeclaration = 1; // If we have had to add it, then we are pending
+		}
+	}
 	
 	strcpy(typeString, t.lx);
 	pi.er = none;
@@ -822,6 +841,11 @@ ParserInfo subroutineBody(Symbol* subroutine) {
 ParserInfo paramList(Symbol* subroutine) {
 	ParserInfo pi;
 	Token t;
+
+	// Always add a this arumgne 
+	Symbol* this = declaredSymbol(subroutine, kArgument);
+	setIdentifierByString(this, "this");	
+	setType(this, subroutine->scope->type); // Set type to class
 	
 	// Early return if empty (i.e. no type present, therefore empty paramList)
 	t = PeekNextToken();
@@ -917,7 +941,7 @@ ParserInfo subroutineDeclar(Symbol* class) {
 	Symbol* subroutine = getSymbol(t.lx, class);
 	if (subroutine == NULL) {
 		subroutine = declaredSymbol(class, kSubroutine);
-		pi = setIdentifier(subroutine, t);
+		setIdentifier(subroutine, t);
 	} else if (subroutine != NULL && !subroutine->isPendingDeclaration) {
 		pi.er = redecIdentifier;
 		pi.tk = t;
@@ -991,7 +1015,8 @@ ParserInfo classVarDeclar(Symbol* class) {
 	Symbol* classVar = getSymbol(t.lx, class);
 	if (classVar == NULL) {
 		classVar = declaredSymbol(class, isStatic ? kStatic : kField);
-		pi = setIdentifier(classVar, t);
+		//pi = setIdentifier(classVar, t);
+		setIdentifier(classVar, t);
 	} else if (classVar != NULL && !classVar->isPendingDeclaration) {
 		pi.er = redecIdentifier;
 		pi.tk = t;
@@ -1103,6 +1128,7 @@ ParserInfo classDeclar() {
 		pi.tk = t;
 	}
 	class->isPendingDeclaration = 0;
+	class->token = t;
 	if (pi.er != none) return pi;
 	
 	// {

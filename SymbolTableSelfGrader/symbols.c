@@ -43,6 +43,9 @@ void setKind(Symbol* symbol, Kind kind) {
 void setType(Symbol* symbol, char type[128]) {
     strcpy(symbol->type, type);
 }
+void setToken(Symbol* symbol, Token token) {
+    symbol->token = token;
+}
 
 // Returns status code
 ParserInfo setIdentifier(Symbol* symbol, Token token) {
@@ -56,6 +59,7 @@ ParserInfo setIdentifier(Symbol* symbol, Token token) {
         return pi;
     }
     strcpy(symbol->identifier, token.lx);
+    setToken(symbol, token);
     pi.er = none;
     return pi;
 }
@@ -87,18 +91,19 @@ Symbol* declaredSymbol(Symbol* scope, Kind kind) {
 // }
 
 
-Symbol* usedExternalSymbol(Symbol* scope, char identifier1[128], char identifier2[128]) {
+Symbol* usedExternalSymbol(Symbol* scope, Token t1, Token t2) {
     // identifier1.identifier2
     // identifier1.identifer2[expression]
     // identifier1.identifier2(expressionList)
 
     // Check if local variable that is of userdefined type
-    Symbol* existing = getSymbol(identifier1, scope);
+    Symbol* existing = getSymbol(t1.lx, scope);
+    Symbol* newExisting;
     char className[128] = {0};
     if (existing != NULL) {
         strcpy(className, existing->type);
     } else {
-        strcpy(className, identifier1);
+        strcpy(className, t1.lx);
     }
 
     // Now we have class/type name, check for attr existing in that class' scope, otherwise add it
@@ -108,11 +113,13 @@ Symbol* usedExternalSymbol(Symbol* scope, char identifier1[128], char identifier
         classScope = insertSymbol(NULL, kClass, 1);
         setIdentifierByString(classScope, className);
         setType(classScope, "class");
+        //setIdentifier(classScope, t1);
     }
-    Symbol* attrScope = getSymbol(identifier2, classScope); // Check if attribute exists
+    Symbol* attrScope = getSymbol(t2.lx, classScope); // Check if attribute exists
     if (attrScope == NULL) {
         attrScope = insertSymbol(classScope, kVar, 1);
-        setIdentifierByString(attrScope, identifier2);
+        //setIdentifierByString(attrScope, t2.lx);
+        setIdentifier(attrScope, t2);
     }
     return attrScope;
 }
@@ -154,6 +161,17 @@ Symbol* insertSymbol(Symbol* scope, Kind kind, char isPendingDeclaration) {
 */
 int canGetSymbol() {
     return 1;
+}
+
+Symbol* getFirstPendingDeclaration() {
+    Symbol* curr = head;
+    while (curr != NULL) {
+        if (curr->isPendingDeclaration) {
+            return curr;
+        }
+        curr = curr->next;
+    }
+    return NULL;
 }
 
 /**
@@ -201,6 +219,7 @@ void freeSymbolTable() {
         free(curr);
         curr = next;
     }
+    head = NULL;
 }
 char* kindAsString(Kind kind) {
     switch (kind) {
@@ -225,5 +244,22 @@ void printSymbolTable() {
     }
 }
 void printSymbol(Symbol* s) {
-    printf("<%s, %s, %s, n%i, p%i, %p (%s)>\n", s->identifier, s->type, kindAsString(s->kind), s->number, s->isPendingDeclaration, s->scope, s->scope->identifier);
+    if (s->scope == NULL) {
+        printf("(%p) <%s, %s, %s, n%i, p%i, %p (NULL), t%s>\n", s, s->identifier, s->type, kindAsString(s->kind), s->number, s->isPendingDeclaration, s->scope, s->token.lx);
+    } else {
+        printf("(%p) <%s, %s, %s, n%i, p%i, %p (%s), t%s>\n", s, s->identifier, s->type, kindAsString(s->kind), s->number, s->isPendingDeclaration, s->scope, s->scope->identifier, s->token.lx);
+    }
+}
+
+void InitSymbols() {
+    freeSymbolTable();
+    head = NULL;
+    tail = NULL;
+
+    kStaticNumber = 0;
+    kFieldNumber = 0;
+    kArgumentNumber = 0;
+    kVarNumber = 0;
+    kClassNumber = 0;
+    kSubroutineNumber = 0;
 }
