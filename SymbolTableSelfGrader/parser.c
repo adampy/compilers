@@ -384,7 +384,7 @@ ParserInfo subroutineCall(Symbol* scope) {
 
 		// Add external class call to symbol table
 		if (!strcmp(externalClassToken.lx, "squar")) {
-			printf("we have it\n");
+			//printf("we have it\n");
 		}
 
 		Symbol* class = getSymbol(externalClassToken.lx, NULL);
