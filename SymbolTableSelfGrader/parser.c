@@ -383,9 +383,19 @@ ParserInfo subroutineCall(Symbol* scope) {
 		}
 
 		// Add external class call to symbol table
+		if (!strcmp(externalClassToken.lx, "squar")) {
+			printf("we have it\n");
+		}
+
+		Symbol* class = getSymbol(externalClassToken.lx, NULL);
+		//printf("-----\nexists: %p", getSymbol(t.lx, class));
+
 		Symbol* externalSymbol = usedExternalSymbol(scope, externalClassToken, t);
 		setKind(externalSymbol, kSubroutine);
 		setType(externalSymbol, "void");
+		//printSymbol(externalSymbol);
+		//printf("exists: %p\n", getSymbol(t.lx, class));
+
 
 		t = mGetNextToken(); // Move onwards to ( if we had .
 		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
@@ -943,6 +953,8 @@ ParserInfo subroutineDeclar(Symbol* class) {
 		subroutine = declaredSymbol(class, kSubroutine);
 		setIdentifier(subroutine, t);
 	} else if (subroutine != NULL && !subroutine->isPendingDeclaration) {
+		printf("we are here again!\n");
+		printSymbol(subroutine);
 		pi.er = redecIdentifier;
 		pi.tk = t;
 	}
@@ -1119,10 +1131,12 @@ ParserInfo classDeclar() {
 	}
 
 	Symbol* class = getSymbol(t.lx, NULL);
+	//printf("declaring %s, does it exist? %p\n", t.lx, class);
 	if (class == NULL) {
 		class = declaredSymbol(NULL, kClass);
 		setType(class, "class");
 		pi = setIdentifier(class, t);
+		//PrintError(pi);
 	} else if (class != NULL && !class->isPendingDeclaration) {
 		pi.er = redecIdentifier;
 		pi.tk = t;

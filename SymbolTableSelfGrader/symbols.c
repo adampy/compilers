@@ -53,7 +53,8 @@ ParserInfo setIdentifier(Symbol* symbol, Token token) {
     Symbol* existing = getSymbol(token.lx, symbol->scope);
     if (existing != NULL && existing->isPendingDeclaration) {
         existing->isPendingDeclaration = 0;
-    } else if (existing != NULL && existing->scope == symbol->scope) {
+    } else if (existing != NULL && existing->scope == symbol->scope && symbol != existing) {
+        //printSymbol(existing);
         pi.er = redecIdentifier;
         pi.tk = token;
         return pi;
@@ -66,7 +67,7 @@ ParserInfo setIdentifier(Symbol* symbol, Token token) {
 ParserInfo setIdentifierByString(Symbol* symbol, char identifier[128]) {
     ParserInfo pi;
     Symbol* existing = getSymbol(identifier, symbol->scope);
-    if (existing != NULL && existing->isPendingDeclaration) {
+    if (existing != NULL && existing->isPendingDeclaration && symbol != existing) {
         existing->isPendingDeclaration = 0;
     }
     strcpy(symbol->identifier, identifier);
@@ -113,6 +114,7 @@ Symbol* usedExternalSymbol(Symbol* scope, Token t1, Token t2) {
         classScope = insertSymbol(NULL, kClass, 1);
         setIdentifierByString(classScope, className);
         setType(classScope, "class");
+        setToken(classScope, t1);
         //setIdentifier(classScope, t1);
     }
     Symbol* attrScope = getSymbol(t2.lx, classScope); // Check if attribute exists
@@ -121,6 +123,10 @@ Symbol* usedExternalSymbol(Symbol* scope, Token t1, Token t2) {
         //setIdentifierByString(attrScope, t2.lx);
         setIdentifier(attrScope, t2);
     }
+    if (classScope->isPendingDeclaration == 1) {
+        attrScope->isPendingDeclaration = 1;
+    }
+    //attrScope->isPendingDeclaration = classScope->isPendingDeclaration;
     return attrScope;
 }
 
@@ -220,6 +226,7 @@ void freeSymbolTable() {
         curr = next;
     }
     head = NULL;
+    tail = NULL;
 }
 char* kindAsString(Kind kind) {
     switch (kind) {

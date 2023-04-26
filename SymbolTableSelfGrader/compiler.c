@@ -47,10 +47,12 @@ ParserInfo compile(char* dir_name) {
     dir = opendir(dir_name);
     while(dir) {
         de = readdir(dir);
-        if (!de || de->d_type != 8) break;
+        if (!de) break;
 
 		// Check if jack file
 		char* filename = de->d_name;
+		if (!strcmp(filename, ".") || !strcmp(filename, "..")) continue;
+
 		char* extension = strrchr(filename, '.');
 		if (extension == NULL) continue;
 		if (strcmp(extension, ".jack")) continue;
@@ -72,17 +74,16 @@ ParserInfo compile(char* dir_name) {
     closedir(dir);
 
 	if (p.er != none) {
-		printf("ere");
+		//printf("ere");
 		return p;
 	}
 
 	// Import standard libraries
 	for (int i = 0; i < NUM_STANDARD_LIBS; i++) {
 		InitLexer(standardLibraries[i]);
-		ParserInfo pi = Parse();
-		if (pi.er != none) {
-			p = pi;
-			return pi;
+		p = Parse();
+		if (p.er != none) {
+			return p;
 		}
 	}
 
@@ -111,8 +112,7 @@ int StopCompiler() {
 #ifndef TEST_COMPILER
 int main() {
 	InitCompiler();
-	//ParserInfo p = compile("Pong");
-	ParserInfo p = compile("UNDECLAR_CLASS");
+	ParserInfo p = compile("Square2");
 	printSymbolTable();
 	printf("--- Overall compilation error ---\n");
 	PrintError(p);
