@@ -258,6 +258,27 @@ void printSymbol(Symbol* s) {
     }
 }
 
+void completeNumbering() {
+    kStaticNumber = 0;
+    kFieldNumber = 0;
+    kArgumentNumber = 0;
+    kVarNumber = 0;
+    kClassNumber = 0;
+    kSubroutineNumber = 0;
+
+    Symbol* curr = head;
+    while (curr != NULL) {
+        Kind kind = curr->kind;
+        if (kind == kClass) curr->number = kClassNumber++;
+        else if (kind == kStatic) curr->number = kStaticNumber++;
+        else if (kind == kField) curr->number = kFieldNumber++;
+        else if (kind == kArgument) curr->number = kArgumentNumber++;
+        else if (kind == kVar) curr->number = kVarNumber++;
+        else if (kind == kSubroutine) curr->number = kSubroutineNumber++;
+        curr = curr->next;
+    }
+}
+
 void InitSymbols() {
     freeSymbolTable();
     head = NULL;

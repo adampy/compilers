@@ -67,6 +67,8 @@ void freeSymbolTable();
 void printSymbolTable();
 void printSymbol(Symbol* s);
 
+void completeNumbering();
+
 void InitSymbols();
 
 #endif

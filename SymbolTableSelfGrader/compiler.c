@@ -99,6 +99,7 @@ ParserInfo compile(char* dir_name) {
 	}
 
 	// Sort out kType numbering
+	completeNumbering();
 
 	return p;
 }
@@ -112,7 +113,7 @@ int StopCompiler() {
 #ifndef TEST_COMPILER
 int main() {
 	InitCompiler();
-	ParserInfo p = compile("Square2");
+	ParserInfo p = compile("Pong");
 	printSymbolTable();
 	printf("--- Overall compilation error ---\n");
 	PrintError(p);
