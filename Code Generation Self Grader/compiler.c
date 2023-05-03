@@ -110,7 +110,7 @@ int StopCompiler() {
 }
 
 
-/*#ifndef TEST_COMPILER
+#ifndef TEST_COMPILER
 int main() {
 	InitCompiler();
 	ParserInfo p = compile("Square");
@@ -118,6 +118,6 @@ int main() {
 	//printf("--- Overall compilation error ---\n");
 	//PrintError(p);
 	StopCompiler();
-	return 0;
+	return (p.er != none);
 }
-#endif*/
+#endif
