@@ -101,6 +101,8 @@ ParserInfo compile(char* dir_name) {
 	// Sort out kType numbering
 	completeNumbering();
 
+	// Lex and parse again but with code generation enabled
+
 	return p;
 }
 

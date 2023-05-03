@@ -5,6 +5,7 @@
 #include "lexer.h"
 #include "parser.h"
 #include "symbols.h"
+#include "vmwriter.h"
 
 //# include "SymbolGrader.h" // TODO: REMOVE THIS
 
@@ -1191,19 +1192,25 @@ int StopParser() {
 	return 1;
 }
 
-/*#ifndef TEST_PARSER
+#ifndef TEST_PARSER
 int main (int argc, char *argv[]) {
 	// Get filename argument
-	if (argc != 2) {
+	/*if (argc != 2) {
 		printf("Usage: ./parser fileToParse.jack\n");
 		return 1;
 	}
-	InitLexer (argv[1]);
+
+	InitLexer(argv[1]);
 	ParserInfo p = Parse();
 	if (p.er != none) {
 		ShowInfo(p);
 	}
+	return 0;*/
 
-	return 0;
+	char* filename = "Square/Main.jack";
+	initOutput(filename);
+	writeReturn();
+	closeOutput();
+
 }
-#endif*/
+#endif
