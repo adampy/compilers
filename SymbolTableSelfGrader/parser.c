@@ -6,7 +6,7 @@
 #include "parser.h"
 #include "symbols.h"
 
-# include "SymbolGrader.h" // TODO: REMOVE THIS
+//# include "SymbolGrader.h" // TODO: REMOVE THIS
 
 // Modified get token and peek token
 ParserInfo lexerErrorInfo;
@@ -915,6 +915,7 @@ ParserInfo paramList(Symbol* subroutine) {
 // subroutineDeclar -> (constructor | function | method) (type|void) identifier (paramList) subroutineBody
 ParserInfo subroutineDeclar(Symbol* class) {
 	ParserInfo pi;
+	pi.er = none;
 
 	Token t = mGetNextToken();
 	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
@@ -1110,6 +1111,7 @@ ParserInfo memberDeclar(Symbol* class) {
 // classDeclar -> class identifier { {memberDeclar} }
 ParserInfo classDeclar() {
 	ParserInfo pi;
+	pi.er = none;
 
 	// class
 	Token t = mGetNextToken();
@@ -1189,7 +1191,7 @@ int StopParser() {
 	return 1;
 }
 
-#ifndef TEST_PARSER
+/*#ifndef TEST_PARSER
 int main (int argc, char *argv[]) {
 	// Get filename argument
 	if (argc != 2) {
@@ -1204,4 +1206,4 @@ int main (int argc, char *argv[]) {
 
 	return 0;
 }
-#endif
+#endif*/

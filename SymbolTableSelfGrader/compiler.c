@@ -18,7 +18,7 @@ Date Work Commenced: 23/04/2023
 #include <string.h>
 #include <dirent.h>
 #include "compiler.h"
-#include "SymbolGrader.h"
+//#include "SymbolGrader.h"
 
 #define NUM_STANDARD_LIBS 8
 char* standardLibraries[NUM_STANDARD_LIBS] = {
@@ -40,8 +40,8 @@ int InitCompiler() {
 ParserInfo compile(char* dir_name) {
 	ParserInfo p;
 	p.er = none;
-	DIR *dir;
-    struct dirent *de;
+	DIR *dir = NULL;
+    struct dirent *de = NULL;
 
 	// Find all jack files
     dir = opendir(dir_name);
@@ -109,14 +109,14 @@ int StopCompiler() {
 }
 
 
-#ifndef TEST_COMPILER
+/*#ifndef TEST_COMPILER
 int main() {
 	InitCompiler();
-	ParserInfo p = compile("Square2");
-	printSymbolTable();
-	printf("--- Overall compilation error ---\n");
-	PrintError(p);
+	ParserInfo p = compile("Square");
+	//printSymbolTable();
+	//printf("--- Overall compilation error ---\n");
+	//PrintError(p);
 	StopCompiler();
-	return 1;
+	return 0;
 }
-#endif
+#endif*/

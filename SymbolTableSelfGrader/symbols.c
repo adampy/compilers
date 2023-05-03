@@ -140,6 +140,7 @@ Symbol* insertSymbol(Symbol* scope, Kind kind, char isPendingDeclaration) {
     s->isPendingDeclaration = isPendingDeclaration;
     s->next = NULL;
     s->scope = scope;
+    memset(s->identifier, 0, 128);
 
     // Set number attribute
     if (kind == kClass) s->number = kClassNumber++;

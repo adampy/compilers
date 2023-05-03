@@ -404,7 +404,7 @@ int StopLexer () {
 }
 
 // do not remove the next line
-#ifndef TEST
+/*#ifndef TEST
 int main (int argc, char *argv[]) {
 	// implement your main function here
   // NOTE: the autograder will not use your main function
@@ -449,3 +449,4 @@ int main (int argc, char *argv[]) {
 }
 // do not remove the next line
 #endif
+*/
