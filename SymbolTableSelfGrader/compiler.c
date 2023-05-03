@@ -99,6 +99,7 @@ ParserInfo compile(char* dir_name) {
 	}
 
 	// Sort out kType numbering
+	completeNumbering();
 
 	return p;
 }
