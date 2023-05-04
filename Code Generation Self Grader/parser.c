@@ -43,7 +43,11 @@ ParserInfo operand(Symbol* scope) {
 	}
 
 	// Cases: integerConstant | stringLiteral
-	if (t.tp == INT || t.tp == STRING) {
+	if (t.tp == INT) {
+		writePush(CONST, t.lx);
+		pi.er = none;
+		return pi;
+	} else if (t.tp == STRING) {
 		pi.er = none;
 		return pi;
 	}
@@ -104,12 +108,14 @@ ParserInfo operand(Symbol* scope) {
 				return pi;
 			}
 		} else {
-			externalSymbol = usedExternalSymbol(scope, identifier, possibleMethod);
+			if (!isCodeGen()) {
+				externalSymbol = usedExternalSymbol(scope, identifier, possibleMethod);
+			}
 		}
 
 		// [ [ expression ] | ( expressionList ) ]
 		if (t.tp == SYMBOL && !strcmp(t.lx, "[")) {
-			if (external[0] != '\0') setKind(externalSymbol, kStatic);
+			if (external[0] != '\0' && !isCodeGen()) setKind(externalSymbol, kStatic);
 			mGetNextToken(); // Consume [
 			if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 			pi = expression(scope);
@@ -124,7 +130,7 @@ ParserInfo operand(Symbol* scope) {
 				return pi;
 			}
 		} else if (t.tp == SYMBOL && !strcmp(t.lx, "(")) {
-			if (external[0] != '\0') setKind(externalSymbol, kSubroutine);
+			if (external[0] != '\0' && !isCodeGen()) setKind(externalSymbol, kSubroutine);
 			mGetNextToken(); // Consume (
 			if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 			pi = expressionList(scope);
@@ -154,16 +160,26 @@ ParserInfo operand(Symbol* scope) {
 ParserInfo factor(Symbol* scope) {
 	ParserInfo pi;
 	Token t;
+	char isNegated = 0;
 
 	// ( - | ~ | ε )
 	t = PeekNextToken();
 	if (t.tp == SYMBOL && (!strcmp(t.lx, "-") || !strcmp(t.lx, "~"))) {
-		mGetNextToken(); // Consume - or ~
+		Token op = mGetNextToken(); // Consume - or ~
 		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
+		if (!strcmp(op.lx, "-") || !strcmp(op.lx, "~")) {
+			isNegated = 1;
+		}
 	}
+
 
 	// operand
 	pi = operand(scope);
+	if (pi.er != none) return pi;
+
+	if (isNegated) {
+		writeArithmetic(NEG);
+	}
 	return pi;
 }
 
@@ -179,13 +195,21 @@ ParserInfo term(Symbol* scope) {
 	// { ( * | / ) factor }
 	t = PeekNextToken();
 	while (t.tp == SYMBOL && (!strcmp(t.lx, "*") || !strcmp(t.lx, "/"))) {
-		mGetNextToken(); // Consume * or /
+		Token op = mGetNextToken(); // Consume * or /
 		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 
 		// factor
 		pi = factor(scope);
 		if (pi.er != none) return pi;
 		t = PeekNextToken();
+
+		// code generation
+		if (!strcmp(op.lx, "*")) {
+			writeCall("Math.multiply", 2);
+		} else {
+			writeCall("Math.divide", 2);
+		}
+
 	}
 
 	pi.er = none;
@@ -204,13 +228,20 @@ ParserInfo arithmeticExpression(Symbol* scope) {
 	// { ( + | - ) term }
 	t = PeekNextToken();
 	while (t.tp == SYMBOL && (!strcmp(t.lx, "+") || !strcmp(t.lx, "-"))) {
-		mGetNextToken(); // Consume + or -
+		Token op = mGetNextToken(); // Consume + or -
 		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 
 		// term
 		pi = term(scope);
 		if (pi.er != none) return pi;
 		t = PeekNextToken();
+
+		// code generation
+		if (!strcmp(op.lx, "+")) {
+			writeArithmetic(ADD);
+		} else {
+			writeArithmetic(SUB);
+		}
 	}
 
 	pi.er = none;
@@ -296,11 +327,19 @@ ParserInfo returnStatement(Symbol* scope) {
 	}
 
 	// [ expression ] ;
+	char hasReturnValue = 0;
 	t = PeekNextToken();
 	if (isPossibleExpression(t)) {
+		hasReturnValue = 1;
 		pi = expression(scope);
 		if (pi.er != none) return pi;
 	}
+
+	// code generation
+	if (!hasReturnValue) {
+		writePush(CONST, "0");
+	}
+	writeReturn();
 
 	// ;
 	t = mGetNextToken();
@@ -358,6 +397,8 @@ ParserInfo subroutineCall(Symbol* scope) {
 	ParserInfo pi;
 	Token t;
 
+	Symbol* method = NULL; // Used in code gen
+
 	// identifier(expressionList) -> function in this class (either defined or not)
 	// identifier.identifier(expressionList)
 
@@ -384,35 +425,40 @@ ParserInfo subroutineCall(Symbol* scope) {
 		}
 
 		// Add external class call to symbol table
-		if (!strcmp(externalClassToken.lx, "squar")) {
-			//printf("we have it\n");
+		if (!isCodeGen()) {
+			Symbol* class = getSymbol(externalClassToken.lx, NULL);
+			Symbol* externalSymbol = usedExternalSymbol(scope, externalClassToken, t);
+			setKind(externalSymbol, kSubroutine);
+			setType(externalSymbol, "void");
+			//printf("-----\nexists: %p", getSymbol(t.lx, class));
+
+			//printSymbol(externalSymbol);
+			//printf("exists: %p\n", getSymbol(t.lx, class));
+		} else {
+			Symbol* class = getSymbol(externalClassToken.lx, NULL);
+			method = getSymbol(t.lx, class);
 		}
-
-		Symbol* class = getSymbol(externalClassToken.lx, NULL);
-		//printf("-----\nexists: %p", getSymbol(t.lx, class));
-
-		Symbol* externalSymbol = usedExternalSymbol(scope, externalClassToken, t);
-		setKind(externalSymbol, kSubroutine);
-		setType(externalSymbol, "void");
-		//printSymbol(externalSymbol);
-		//printf("exists: %p\n", getSymbol(t.lx, class));
 
 
 		t = mGetNextToken(); // Move onwards to ( if we had .
 		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	} else {
 		// Class defined method (either defined or not) (check this class' scope)
+
 		Symbol* variable = getSymbol(externalClassToken.lx, scope);
 		if (variable == NULL) {
 			//printf("# usedExternalSymbol(scope: %s, scope->scope->token: %s, externalClassToken: %s)\n", scope->identifier, scope->scope->token.lx, externalClassToken.lx);
 			//PrintToken(scope->scope->token);
 			//printSymbol(scope->scope);
-			Symbol* undefinedMethod = usedExternalSymbol(scope, scope->scope->token, externalClassToken);
-			setKind(undefinedMethod, kSubroutine);
-			setType(undefinedMethod, "void");
+			if (!isCodeGen()) {
+				Symbol* undefinedMethod = usedExternalSymbol(scope, scope->scope->token, externalClassToken);
+				setKind(undefinedMethod, kSubroutine);
+				setType(undefinedMethod, "void");
+			}
 			//printSymbol(undefinedMethod);
 			//printf("-----\n");
 		}
+		method = getSymbol(externalClassToken.lx, scope);
 	}
 	
 	// (
@@ -433,6 +479,14 @@ ParserInfo subroutineCall(Symbol* scope) {
 		pi.er = closeParenExpected;
 		pi.tk = t;
 		return pi;
+	}
+
+	// code generation
+	if (isCodeGen()) {
+		//writeCall("function.call", 100);
+		char functionName[256] = {0};
+		sprintf(functionName, "%s.%s", method->scope->identifier, method->identifier);
+		writeCall(functionName, method->nArgs);
 	}
 
 	pi.er = none;
@@ -456,6 +510,10 @@ ParserInfo doStatement(Symbol* scope) {
 	// subroutineCall
 	pi = subroutineCall(scope);
 	if (pi.er != none) return pi;
+
+	if (isCodeGen()) {
+		writePop(TEMP, "0");
+	}
 
 	// ;
 	t = mGetNextToken();
@@ -707,8 +765,9 @@ ParserInfo typeWithString(char typeString[128]) {
 // varDeclarStatement -> var type identifier { , identifier } ;
 ParserInfo varDeclarstatement(Symbol* scope) {
 	ParserInfo pi;
+	pi.er = none;
 	Token t;
-	Symbol* firstVar = declaredSymbol(scope, kVar);
+	Symbol* firstVar;
 
 	// var
 	t = mGetNextToken();
@@ -720,7 +779,12 @@ ParserInfo varDeclarstatement(Symbol* scope) {
 	}
 
 	// type
-	pi = typeWithSymbol(firstVar);
+	if (!isCodeGen()) {
+		firstVar = declaredSymbol(scope, kVar);
+		pi = typeWithSymbol(firstVar);
+	} else {
+		type();
+	}
 	if (pi.er != none) return pi;
 
 	// identifier
@@ -731,7 +795,11 @@ ParserInfo varDeclarstatement(Symbol* scope) {
 		pi.tk = t;
 		return pi;
 	}
-	pi = setIdentifier(firstVar, t);
+
+	if (!isCodeGen()) {
+		pi = setIdentifier(firstVar, t);
+		scope->nVars++;
+	}
 
 	// {, identifier}
 	t = PeekNextToken();
@@ -753,9 +821,12 @@ ParserInfo varDeclarstatement(Symbol* scope) {
 			return pi;
 		}
 
-		Symbol* var = declaredSymbol(scope, kVar);
-		setType(var, firstVar->type);
-		pi = setIdentifier(var, t);
+		if (!isCodeGen()) {
+			Symbol* var = declaredSymbol(scope, kVar);
+			setType(var, firstVar->type);
+			pi = setIdentifier(var, t);
+			scope->nVars++;
+		}
 		if (pi.er != none) return pi;
 
 		t = PeekNextToken();
@@ -770,7 +841,6 @@ ParserInfo varDeclarstatement(Symbol* scope) {
 		return pi;
 	}
 
-	pi.er = none;
 	return pi;
 }
 
@@ -851,12 +921,15 @@ ParserInfo subroutineBody(Symbol* subroutine) {
 // paramList -> type identifier {, type identifier} | ε
 ParserInfo paramList(Symbol* subroutine, int* nArgs) {
 	ParserInfo pi;
+	pi.er = none;
 	Token t;
 
-	// Always add a this arumgne 
-	Symbol* this = declaredSymbol(subroutine, kArgument);
-	setIdentifierByString(this, "this");	
-	setType(this, subroutine->scope->type); // Set type to class
+	// Always add a this argument
+	if (!isCodeGen()) {
+		Symbol* this = declaredSymbol(subroutine, kArgument);
+		setIdentifierByString(this, "this");	
+		setType(this, subroutine->scope->type); // Set type to class
+	}
 	
 	// Early return if empty (i.e. no type present, therefore empty paramList)
 	t = PeekNextToken();
@@ -866,8 +939,13 @@ ParserInfo paramList(Symbol* subroutine, int* nArgs) {
 	}
 
 	// type
-	Symbol* firstParam = declaredSymbol(subroutine, kArgument);
-	pi = typeWithSymbol(firstParam);
+	Symbol* firstParam;
+	if (!isCodeGen()) {
+		firstParam = declaredSymbol(subroutine, kArgument);
+		pi = typeWithSymbol(firstParam);
+	} else {
+		type();
+	}
 	if (pi.er != none) return pi;
 
 	// identifier
@@ -878,8 +956,11 @@ ParserInfo paramList(Symbol* subroutine, int* nArgs) {
 		pi.tk = t;
 		return pi;
 	}
-	setIdentifier(firstParam, t);
-	*nArgs = 1;
+
+	if (!isCodeGen()) {
+		setIdentifier(firstParam, t);
+		*nArgs = 1;
+	}
 
 	// {, type identifier}
 	t = PeekNextToken(); // t is either a comma or not
@@ -893,8 +974,13 @@ ParserInfo paramList(Symbol* subroutine, int* nArgs) {
 		}
 
 		// type
-		Symbol* param = declaredSymbol(subroutine, kArgument);
-		pi = typeWithSymbol(param);
+		Symbol* param;
+		if (!isCodeGen()) {
+			param = declaredSymbol(subroutine, kArgument);
+			pi = typeWithSymbol(param);
+		} else {
+			type();
+		}
 		if (pi.er != none) return pi;
 
 		// identifier
@@ -905,13 +991,15 @@ ParserInfo paramList(Symbol* subroutine, int* nArgs) {
 			pi.tk = t;
 			return pi;
 		}
-		setIdentifier(param, t);
-		*nArgs++;
+
+		if (!isCodeGen()) {
+			setIdentifier(param, t);
+			(*nArgs)++;
+		}
 
 		t = PeekNextToken();
 	}
 
-	pi.er = none;
 	return pi;
 }
 
@@ -953,18 +1041,20 @@ ParserInfo subroutineDeclar(Symbol* class) {
 	if (pi.er != none) return pi;
 
 	Symbol* subroutine = getSymbol(t.lx, class);
-	if (subroutine == NULL) {
-		subroutine = declaredSymbol(class, kSubroutine);
-		setIdentifier(subroutine, t);
-	} else if (subroutine != NULL && !subroutine->isPendingDeclaration) {
-		printf("we are here again!\n");
-		printSymbol(subroutine);
-		pi.er = redecIdentifier;
-		pi.tk = t;
+	if (!isCodeGen()) {
+		if (subroutine == NULL) {
+			subroutine = declaredSymbol(class, kSubroutine);
+			setIdentifier(subroutine, t);
+		} else if (subroutine != NULL && !subroutine->isPendingDeclaration) {
+			printf("we are here again!\n");
+			printSymbol(subroutine);
+			pi.er = redecIdentifier;
+			pi.tk = t;
+		}
+		if (pi.er != none) return pi;
+		subroutine->isPendingDeclaration = 0;
+		setType(subroutine, typeString);
 	}
-	if (pi.er != none) return pi;
-	subroutine->isPendingDeclaration = 0;
-	setType(subroutine, typeString);
 
 	// (
 	t = mGetNextToken();
@@ -975,10 +1065,8 @@ ParserInfo subroutineDeclar(Symbol* class) {
 		return pi;
 	}
 
-
 	// paramList
-	int nArgs = 0;
-	pi = paramList(subroutine, &nArgs);
+	pi = paramList(subroutine, &subroutine->nArgs);
 	if (pi.er != none) return pi;
 
 	// )
@@ -990,15 +1078,18 @@ ParserInfo subroutineDeclar(Symbol* class) {
 		return pi;
 	}
 
+	// code genation
+	//("%s.%s has %i args\n", subroutine->scope->identifier, subroutine->identifier, subroutine->nArgs);
+	if (isCodeGen()) {
+		char functionName[256] = {0};
+		sprintf(functionName, "%s.%s", subroutine->scope->identifier, subroutine->identifier);
+		writeFunction(functionName, subroutine->nVars);
+	}
+
 	// subroutineBody
 	pi = subroutineBody(subroutine);
 	if (pi.er != none) return pi;
 
-	// code genation
-	char functionName[128] = {0};
-	sprintf(functionName, "%s.%s", subroutine->identifier, subroutine->scope->identifier);
-	writeFunction(functionName, nArgs);
-	
 	pi.er = none;
 	return pi;
 }
@@ -1035,17 +1126,19 @@ ParserInfo classVarDeclar(Symbol* class) {
 	}
 	
 	Symbol* classVar = getSymbol(t.lx, class);
-	if (classVar == NULL) {
-		classVar = declaredSymbol(class, isStatic ? kStatic : kField);
-		//pi = setIdentifier(classVar, t);
-		setIdentifier(classVar, t);
-	} else if (classVar != NULL && !classVar->isPendingDeclaration) {
-		pi.er = redecIdentifier;
-		pi.tk = t;
+	if (!isCodeGen()) {
+		if (classVar == NULL) {
+			classVar = declaredSymbol(class, isStatic ? kStatic : kField);
+			//pi = setIdentifier(classVar, t);
+			setIdentifier(classVar, t);
+		} else if (classVar != NULL && !classVar->isPendingDeclaration) {
+			pi.er = redecIdentifier;
+			pi.tk = t;
+		}
+		if (pi.er != none) return pi;
+		classVar->isPendingDeclaration = 0;
+		setType(classVar, typeString);
 	}
-	if (pi.er != none) return pi;
-	classVar->isPendingDeclaration = 0;
-	setType(classVar, typeString);
 
 	// {, identifier}
 	t = PeekNextToken();
@@ -1068,23 +1161,19 @@ ParserInfo classVarDeclar(Symbol* class) {
 		}
 
 		Symbol* newClassVar = getSymbol(t.lx, class);
-		if (newClassVar == NULL) {
-			newClassVar = declaredSymbol(class, isStatic ? kStatic : kField);
-			pi = setIdentifier(newClassVar, t);
-		} else if (newClassVar != NULL && !newClassVar->isPendingDeclaration) {
-			pi.er = redecIdentifier;
-			pi.tk = t;
+		if (!isCodeGen()) {
+			if (newClassVar == NULL) {
+				newClassVar = declaredSymbol(class, isStatic ? kStatic : kField);
+				pi = setIdentifier(newClassVar, t);
+			} else if (newClassVar != NULL && !newClassVar->isPendingDeclaration) {
+				pi.er = redecIdentifier;
+				pi.tk = t;
+			}
+
+			if (pi.er != none) return pi;
+			newClassVar->isPendingDeclaration = 0;
+			setType(newClassVar, typeString);
 		}
-
-		if (pi.er != none) return pi;
-		newClassVar->isPendingDeclaration = 0;
-		setType(newClassVar, typeString);
-
-		// Symbol* newClassVar = declaredSymbol(class, kVar);
-		// setType(newClassVar, classVar->type);
-		// setKind(newClassVar, classVar->kind);
-		// pi = setIdentifier(newClassVar, t);
-		// if (pi.er != none) return pi;		
 
 		t = PeekNextToken();
 	}
@@ -1142,20 +1231,22 @@ ParserInfo classDeclar() {
 	}
 
 	Symbol* class = getSymbol(t.lx, NULL);
-	//printf("declaring %s, does it exist? %p\n", t.lx, class);
-	if (class == NULL) {
-		class = declaredSymbol(NULL, kClass);
-		setType(class, "class");
-		pi = setIdentifier(class, t);
-		//PrintError(pi);
-	} else if (class != NULL && !class->isPendingDeclaration) {
-		pi.er = redecIdentifier;
-		pi.tk = t;
+	if (!isCodeGen()) {
+		//printf("declaring %s, does it exist? %p\n", t.lx, class);
+		if (class == NULL) {
+			class = declaredSymbol(NULL, kClass);
+			setType(class, "class");
+			pi = setIdentifier(class, t);
+			//PrintError(pi);
+		} else if (class != NULL && !class->isPendingDeclaration) {
+			pi.er = redecIdentifier;
+			pi.tk = t;
+		}
+		class->isPendingDeclaration = 0;
+		class->token = t;
+		if (pi.er != none) return pi;
 	}
-	class->isPendingDeclaration = 0;
-	class->token = t;
-	if (pi.er != none) return pi;
-	
+		
 	// {
 	t = mGetNextToken();
 	if (t.tp != SYMBOL || strcmp(t.lx, "{")) {

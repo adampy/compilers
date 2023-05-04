@@ -28,8 +28,8 @@ char* operationToString(Operation op);
 
 void initOutput(char* inputFilename);
 void closeOutput();
-void writePush(Segment segment, int index);
-void writePop(Segment segment, int index);
+void writePush(Segment segment, char* index);
+void writePop(Segment segment, char* index);
 void writeArithmetic(Operation op);
 void writeLabel(char* label);
 void writeGoto(char* label);

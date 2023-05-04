@@ -140,6 +140,8 @@ Symbol* insertSymbol(Symbol* scope, Kind kind, char isPendingDeclaration) {
     s->isPendingDeclaration = isPendingDeclaration;
     s->next = NULL;
     s->scope = scope;
+    s->nArgs = 0;
+    s->nVars = 0;
     memset(s->identifier, 0, 128);
 
     // Set number attribute
@@ -253,9 +255,9 @@ void printSymbolTable() {
 }
 void printSymbol(Symbol* s) {
     if (s->scope == NULL) {
-        printf("(%p) <%s, %s, %s, n%i, p%i, %p (NULL), t%s>\n", s, s->identifier, s->type, kindAsString(s->kind), s->number, s->isPendingDeclaration, s->scope, s->token.lx);
+        printf("(%p) <%s, %s, %s, n%i, p%i, %p (NULL), t%s, %i>\n", s, s->identifier, s->type, kindAsString(s->kind), s->number, s->isPendingDeclaration, s->scope, s->token.lx, s->nArgs);
     } else {
-        printf("(%p) <%s, %s, %s, n%i, p%i, %p (%s), t%s>\n", s, s->identifier, s->type, kindAsString(s->kind), s->number, s->isPendingDeclaration, s->scope, s->scope->identifier, s->token.lx);
+        printf("(%p) <%s, %s, %s, n%i, p%i, %p (%s), t%s, %i>\n", s, s->identifier, s->type, kindAsString(s->kind), s->number, s->isPendingDeclaration, s->scope, s->scope->identifier, s->token.lx, s->nArgs);
     }
 }
 
@@ -291,4 +293,12 @@ void InitSymbols() {
     kVarNumber = 0;
     kClassNumber = 0;
     kSubroutineNumber = 0;
+}
+
+char _isCodeGen = 0;
+char isCodeGen() {
+    return (_isCodeGen == 1);
+}
+void setCodeGen(char val) {
+    _isCodeGen = val;
 }

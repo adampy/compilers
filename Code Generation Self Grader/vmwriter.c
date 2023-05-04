@@ -51,14 +51,14 @@ char* operationToString(Operation op) {
 
 // ----- WRITING FUNCTIONS -----
 
-void writePush(Segment segment, int index) {
+void writePush(Segment segment, char* index) {
     if (output == NULL) return;
-    fprintf(output, "push %s %i\n", segmentToString(segment), index);
+    fprintf(output, "push %s %s\n", segmentToString(segment), index);
 }
 
-void writePop(Segment segment, int index)  {
+void writePop(Segment segment, char* index)  {
     if (output == NULL) return;
-    fprintf(output, "pop %s %i\n", segmentToString(segment), index);
+    fprintf(output, "pop %s %s\n", segmentToString(segment), index);
 }
 
 void writeArithmetic(Operation op) {
@@ -92,5 +92,6 @@ void writeFunction(char* name, int nLocals) {
 }
 
 void writeReturn() {
+    if (output == NULL) return;
     fprintf(output, "return\n");
 }

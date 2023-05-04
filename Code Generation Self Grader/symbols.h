@@ -27,6 +27,9 @@ typedef struct SymbolT {
 
     char isPendingDeclaration; // Has the identifier been declared
     char isDeclaredTwice; // Has the identifier been declared more than once
+
+    int nArgs; // Used to denote how many arguments a function takes
+    int nVars; // Used to denote how many local variables the symbol has
 } Symbol;
 
 
@@ -70,5 +73,8 @@ void printSymbol(Symbol* s);
 void completeNumbering();
 
 void InitSymbols();
+
+char isCodeGen();
+void setCodeGen(char val);
 
 #endif
