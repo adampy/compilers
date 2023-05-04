@@ -23,6 +23,9 @@ typedef enum {
     NOT
 } Operation;
 
+char* segmentToString(Segment segment);
+char* operationToString(Operation op);
+
 void initOutput(char* inputFilename);
 void closeOutput();
 void writePush(Segment segment, int index);

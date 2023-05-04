@@ -115,7 +115,7 @@ int StopCompiler() {
 #ifndef TEST_COMPILER
 int main() {
 	InitCompiler();
-	ParserInfo p = compile("Square");
+	ParserInfo p = compile("Seven");
 	//printSymbolTable();
 	//printf("--- Overall compilation error ---\n");
 	//PrintError(p);

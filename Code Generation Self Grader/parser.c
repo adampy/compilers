@@ -849,7 +849,7 @@ ParserInfo subroutineBody(Symbol* subroutine) {
 }
 
 // paramList -> type identifier {, type identifier} | ε
-ParserInfo paramList(Symbol* subroutine) {
+ParserInfo paramList(Symbol* subroutine, int* nArgs) {
 	ParserInfo pi;
 	Token t;
 
@@ -879,6 +879,7 @@ ParserInfo paramList(Symbol* subroutine) {
 		return pi;
 	}
 	setIdentifier(firstParam, t);
+	*nArgs = 1;
 
 	// {, type identifier}
 	t = PeekNextToken(); // t is either a comma or not
@@ -905,6 +906,7 @@ ParserInfo paramList(Symbol* subroutine) {
 			return pi;
 		}
 		setIdentifier(param, t);
+		*nArgs++;
 
 		t = PeekNextToken();
 	}
@@ -975,7 +977,8 @@ ParserInfo subroutineDeclar(Symbol* class) {
 
 
 	// paramList
-	pi = paramList(subroutine);
+	int nArgs = 0;
+	pi = paramList(subroutine, &nArgs);
 	if (pi.er != none) return pi;
 
 	// )
@@ -990,6 +993,11 @@ ParserInfo subroutineDeclar(Symbol* class) {
 	// subroutineBody
 	pi = subroutineBody(subroutine);
 	if (pi.er != none) return pi;
+
+	// code genation
+	char functionName[128] = {0};
+	sprintf(functionName, "%s.%s", subroutine->identifier, subroutine->scope->identifier);
+	writeFunction(functionName, nArgs);
 	
 	pi.er = none;
 	return pi;
@@ -1192,10 +1200,10 @@ int StopParser() {
 	return 1;
 }
 
-#ifndef TEST_PARSER
+/*#ifndef TEST_PARSER
 int main (int argc, char *argv[]) {
 	// Get filename argument
-	/*if (argc != 2) {
+	if (argc != 2) {
 		printf("Usage: ./parser fileToParse.jack\n");
 		return 1;
 	}
@@ -1205,12 +1213,13 @@ int main (int argc, char *argv[]) {
 	if (p.er != none) {
 		ShowInfo(p);
 	}
-	return 0;*/
+	return 0;
 
 	char* filename = "Square/Main.jack";
 	initOutput(filename);
+	writePush(CONST, 0);
 	writeReturn();
 	closeOutput();
 
 }
-#endif
+#endif*/
