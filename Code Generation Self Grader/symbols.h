@@ -29,7 +29,7 @@ typedef struct SymbolT {
     char isDeclaredTwice; // Has the identifier been declared more than once
 
     int nArgs; // Used to denote how many arguments a function takes
-    int nVars; // Used to denote how many local variables the symbol has
+    int nVars; // Used to denote how many local variables (if a funciton) or field variables (if a class) the symbol has
 } Symbol;
 
 

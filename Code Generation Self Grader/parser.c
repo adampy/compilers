@@ -33,12 +33,23 @@ ParserInfo expressionList(Symbol* scope);
 // operand -> integerConstant | identifier [.identifier ] [ [ expression ] | (expressionList ) ] | (expression) | stringLiteral | true | false | null | this
 ParserInfo operand(Symbol* scope) {
 	ParserInfo pi;
+	pi.er = none;
 	Token t = mGetNextToken();
 	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 
 	// Cases: true | false | null | this
-	if (t.tp == RESWORD && (!strcmp(t.lx, "true") || !strcmp(t.lx, "false") || !strcmp(t.lx, "null") || !strcmp(t.lx, "this"))) {
-		pi.er = none;
+	if (t.tp == RESWORD && !strcmp(t.lx, "this")) {
+		writePush(POINTER, "0");
+		return pi;
+	} else if (t.tp == RESWORD && !strcmp(t.lx, "null")) {
+		writePush(CONST, "0");
+		return pi;
+	} else if (t.tp == RESWORD && !strcmp(t.lx, "false")) {
+		writePush(CONST, "0");
+		return pi;
+	} else if (t.tp == RESWORD && !strcmp(t.lx, "true")) {
+		writePush(CONST, "1");
+		writeArithmetic(NEG);
 		return pi;
 	}
 
@@ -131,6 +142,18 @@ ParserInfo operand(Symbol* scope) {
 			}
 		} else if (t.tp == SYMBOL && !strcmp(t.lx, "(")) {
 			if (external[0] != '\0' && !isCodeGen()) setKind(externalSymbol, kSubroutine);
+			
+			// code generation of first identifier if we are a.function()
+			if (isCodeGen() && external[0] != '\0') {
+				Symbol* localVar = getSymbol(identifier.lx, scope);
+				if (localVar != NULL) {
+					Symbol* class = getSymbol(localVar->type, NULL); // a.function()
+					char variableNumber[128] = {0};
+					sprintf(variableNumber, "%d", localVar->number);
+					writePush(LOCAL, variableNumber);
+				}
+			}
+			
 			mGetNextToken(); // Consume (
 			if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 			pi = expressionList(scope);
@@ -173,8 +196,13 @@ ParserInfo operand(Symbol* scope) {
 				Symbol* localVar = getSymbol(identifier.lx, scope);
 				char variableNumber[128] = {0};
 				sprintf(variableNumber, "%d", localVar->number);
-				writePush(LOCAL, variableNumber);
-				// THIS IS BEING CALLED WHEN NOT NECESSARY
+				if (localVar->kind == kArgument) {
+					writePush(ARG, variableNumber);
+				} else if (localVar->kind == kVar) {
+					writePush(LOCAL, variableNumber);
+				} else if (localVar->kind == kField) {
+					writePush(THIS, variableNumber);
+				}
 			}
 		}
 
@@ -444,10 +472,22 @@ ParserInfo subroutineCall(Symbol* scope) {
 		return pi;
 	}
 
+
 	// [ . identifier ]
 	t = mGetNextToken(); // t is either . or (
 	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp == SYMBOL && !strcmp(t.lx, ".")) {
+		// code generation of first identifier if we are a.function()
+		if (isCodeGen()) {
+			Symbol* localVar = getSymbol(externalClassToken.lx, scope);
+			if (localVar != NULL) {
+				Symbol* class = getSymbol(localVar->type, NULL); // a.function()
+				char variableNumber[128] = {0};
+				sprintf(variableNumber, "%d", localVar->number);
+				writePush(LOCAL, variableNumber);
+			}
+		}
+		
 		// identifier
 		t = mGetNextToken();
 		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
@@ -500,6 +540,10 @@ ParserInfo subroutineCall(Symbol* scope) {
 
 		class = scope->scope; // function->class
 		method = getSymbol(externalClassToken.lx, scope);
+
+		if (isCodeGen()) {
+			writePush(POINTER, "0");
+		}
 	}
 	
 	// (
@@ -731,7 +775,13 @@ ParserInfo letStatement(Symbol* scope) {
 	if (isCodeGen()) {
 		char variableNumber[128] = {0};
 		sprintf(variableNumber, "%d", variable->number);
-		writePop(LOCAL, variableNumber);
+		if (variable->kind == kArgument) {
+			writePop(ARG, variableNumber);
+		} else if (variable->kind == kVar) {
+			writePop(LOCAL, variableNumber);
+		} else if (variable->kind == kField) {
+			writePop(THIS, variableNumber);
+		}
 	}
 
 	// ;
@@ -1071,6 +1121,7 @@ ParserInfo subroutineDeclar(Symbol* class) {
 		return pi;
 	}
 	char isMethod = !strcmp(t.lx, "method");
+	char isConstructor = !strcmp(t.lx, "constructor");
 
 	// (type|void)
 	char typeString[128] = {0};
@@ -1138,6 +1189,15 @@ ParserInfo subroutineDeclar(Symbol* class) {
 		char functionName[256] = {0};
 		sprintf(functionName, "%s.%s", subroutine->scope->identifier, subroutine->identifier);
 		writeFunction(functionName, subroutine->nVars);
+
+		if (isConstructor) {
+			// Find number of field variables in the class
+			char fieldVars[128] = {0};
+			sprintf(fieldVars, "%d", class->nVars);
+			writePush(CONST, fieldVars);
+			writeCall("Memory.alloc", 1);
+			writePop(POINTER, "0");
+		}
 	}
 
 	// subroutineBody
@@ -1189,9 +1249,14 @@ ParserInfo classVarDeclar(Symbol* class) {
 			pi.er = redecIdentifier;
 			pi.tk = t;
 		}
+
 		if (pi.er != none) return pi;
 		classVar->isPendingDeclaration = 0;
 		setType(classVar, typeString);
+
+		if (!isStatic) {
+			class->nVars++;
+		}
 	}
 
 	// {, identifier}
@@ -1227,6 +1292,10 @@ ParserInfo classVarDeclar(Symbol* class) {
 			if (pi.er != none) return pi;
 			newClassVar->isPendingDeclaration = 0;
 			setType(newClassVar, typeString);
+
+			if (!isStatic) {
+				class->nVars++;
+			}
 		}
 
 		t = PeekNextToken();
