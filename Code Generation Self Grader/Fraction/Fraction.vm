@@ -12,6 +12,8 @@ pop temp 0
 push pointer 0
 return
 function Fraction.reduce 1
+push argument 0
+pop pointer 0
 push this 0
 push this 1
 call Fraction.gcd 2
@@ -29,12 +31,18 @@ pop this 1
 push constant 0
 return
 function Fraction.getNumerator 0
+push argument 0
+pop pointer 0
 push this 0
 return
 function Fraction.getDenominator 0
+push argument 0
+pop pointer 0
 push this 1
 return
 function Fraction.plus 1
+push argument 0
+pop pointer 0
 push this 0
 push local 6
 call Fraction.getDenominator 1
@@ -53,12 +61,16 @@ call Math.multiply 2
 call Fraction.new 2
 return
 function Fraction.dispose 0
+push argument 0
+pop pointer 0
 push pointer 0
 call Memory.deAlloc 1
 pop temp 0
 push constant 0
 return
 function Fraction.print 0
+push argument 0
+pop pointer 0
 push this 0
 call Output.printInt 1
 pop temp 0

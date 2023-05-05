@@ -487,7 +487,7 @@ ParserInfo subroutineCall(Symbol* scope) {
 				writePush(LOCAL, variableNumber);
 			}
 		}
-		
+
 		// identifier
 		t = mGetNextToken();
 		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
@@ -1196,6 +1196,9 @@ ParserInfo subroutineDeclar(Symbol* class) {
 			sprintf(fieldVars, "%d", class->nVars);
 			writePush(CONST, fieldVars);
 			writeCall("Memory.alloc", 1);
+			writePop(POINTER, "0");
+		} else if (isMethod) {
+			writePush(ARG, "0");
 			writePop(POINTER, "0");
 		}
 	}
