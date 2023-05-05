@@ -1,0 +1,80 @@
+function Fraction.new 0
+push local 0
+pop local 0
+push local 1
+pop local 1
+call Fraction.reduce 1
+pop temp 0
+return
+function Fraction.reduce 1
+push local 0
+push local 1
+call Fraction.gcd 2
+pop local 3
+push local 3
+push constant 1
+push local 0
+push local 3
+call Math.divide 2
+pop local 0
+push local 1
+push local 3
+call Math.divide 2
+pop local 1
+push constant 0
+return
+function Fraction.getNumerator 0
+push local 0
+return
+function Fraction.getDenominator 0
+push local 1
+return
+function Fraction.plus 1
+push local 0
+call Fraction.getDenominator 1
+call Math.multiply 2
+call Fraction.getNumerator 1
+push local 1
+call Math.multiply 2
+add
+pop local 4
+push local 4
+push local 1
+call Fraction.getDenominator 1
+call Math.multiply 2
+call Fraction.new 2
+return
+function Fraction.dispose 0
+call Memory.deAlloc 1
+pop temp 0
+push constant 0
+return
+function Fraction.print 0
+push local 0
+call Output.printInt 1
+pop temp 0
+call Output.printString 1
+pop temp 0
+push local 1
+call Output.printInt 1
+pop temp 0
+push constant 0
+return
+function Fraction.gcd 1
+push local 10
+push constant 0
+neg
+push local 9
+push local 10
+push local 9
+push local 10
+call Math.divide 2
+call Math.multiply 2
+sub
+pop local 5
+push local 10
+pop local 9
+push local 5
+pop local 10
+push local 9
+return

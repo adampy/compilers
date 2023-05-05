@@ -144,6 +144,38 @@ ParserInfo operand(Symbol* scope) {
 				pi.tk = t;
 				return pi;
 			}
+
+			// code generation, either function(), Class.function(), or a.function()
+			if (isCodeGen()) {
+				Symbol* class = NULL;
+				Symbol* method = NULL;
+				if (external[0] != '\0') { // Class.function() or a.function()
+					Symbol* localVar = getSymbol(identifier.lx, scope);
+					if (localVar != NULL) {
+						class = getSymbol(localVar->type, NULL); // a.function()
+					} else {
+						class = getSymbol(identifier.lx, NULL); // Class.function()
+					}
+					method = getSymbol(external, class);
+					//printf("%s.%s\n", class->identifier, method->identifier);
+				} else { // function()
+					class = getSymbol(scope->scope->identifier, NULL);
+					method = getSymbol(identifier.lx, class);
+					//printf("%s.%s\n", class->identifier, method->identifier);
+				}
+
+				char functionName[256] = {0};
+				sprintf(functionName, "%s.%s", method->scope->identifier, method->identifier);
+				writeCall(functionName, method->nArgs);
+			}
+		} else { // Then we have either `localVar` or `Class.staticField`
+			if (isCodeGen() && external[0] == '\0') { // localVar
+				Symbol* localVar = getSymbol(identifier.lx, scope);
+				char variableNumber[128] = {0};
+				sprintf(variableNumber, "%d", localVar->number);
+				writePush(LOCAL, variableNumber);
+				// THIS IS BEING CALLED WHEN NOT NECESSARY
+			}
 		}
 
 		pi.er = none;
@@ -397,6 +429,7 @@ ParserInfo subroutineCall(Symbol* scope) {
 	ParserInfo pi;
 	Token t;
 
+	Symbol* class = NULL;
 	Symbol* method = NULL; // Used in code gen
 
 	// identifier(expressionList) -> function in this class (either defined or not)
@@ -426,7 +459,7 @@ ParserInfo subroutineCall(Symbol* scope) {
 
 		// Add external class call to symbol table
 		if (!isCodeGen()) {
-			Symbol* class = getSymbol(externalClassToken.lx, NULL);
+			class = getSymbol(externalClassToken.lx, NULL);
 			Symbol* externalSymbol = usedExternalSymbol(scope, externalClassToken, t);
 			setKind(externalSymbol, kSubroutine);
 			setType(externalSymbol, "void");
@@ -435,13 +468,19 @@ ParserInfo subroutineCall(Symbol* scope) {
 			//printSymbol(externalSymbol);
 			//printf("exists: %p\n", getSymbol(t.lx, class));
 		} else {
-			Symbol* class = getSymbol(externalClassToken.lx, NULL);
-			method = getSymbol(t.lx, class);
+			// Now we have something like ClassName.Method() or c.Method() where c is var
+			Symbol* localVar = getSymbol(externalClassToken.lx, scope);
+			if (localVar != NULL) { // Then we have a local var - check type
+				class = getSymbol(localVar->type, NULL);
+				method = getSymbol(t.lx, class);
+			} else {
+				class = getSymbol(externalClassToken.lx, NULL);
+				method = getSymbol(t.lx, class);
+			}
 		}
-
-
 		t = mGetNextToken(); // Move onwards to ( if we had .
 		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
+	
 	} else {
 		// Class defined method (either defined or not) (check this class' scope)
 
@@ -458,6 +497,8 @@ ParserInfo subroutineCall(Symbol* scope) {
 			//printSymbol(undefinedMethod);
 			//printf("-----\n");
 		}
+
+		class = scope->scope; // function->class
 		method = getSymbol(externalClassToken.lx, scope);
 	}
 	
@@ -685,6 +726,13 @@ ParserInfo letStatement(Symbol* scope) {
 	// expression
 	pi = expression(scope);
 	if (pi.er != none) return pi;
+
+	// code generation
+	if (isCodeGen()) {
+		char variableNumber[128] = {0};
+		sprintf(variableNumber, "%d", variable->number);
+		writePop(LOCAL, variableNumber);
+	}
 
 	// ;
 	t = mGetNextToken();
@@ -919,16 +967,21 @@ ParserInfo subroutineBody(Symbol* subroutine) {
 }
 
 // paramList -> type identifier {, type identifier} | ε
-ParserInfo paramList(Symbol* subroutine, int* nArgs) {
+ParserInfo paramList(Symbol* subroutine, int includeThis, int* nArgs) {
 	ParserInfo pi;
 	pi.er = none;
 	Token t;
 
-	// Always add a this argument
+	// Conditionally add a `this` argument
 	if (!isCodeGen()) {
-		Symbol* this = declaredSymbol(subroutine, kArgument);
-		setIdentifierByString(this, "this");	
-		setType(this, subroutine->scope->type); // Set type to class
+		if (includeThis) {
+			Symbol* this = declaredSymbol(subroutine, kArgument);
+			setIdentifierByString(this, "this");	
+			setType(this, subroutine->scope->type); // Set type to class
+			*nArgs = 1;
+		} else {
+			*nArgs = 0;
+		}
 	}
 	
 	// Early return if empty (i.e. no type present, therefore empty paramList)
@@ -959,7 +1012,7 @@ ParserInfo paramList(Symbol* subroutine, int* nArgs) {
 
 	if (!isCodeGen()) {
 		setIdentifier(firstParam, t);
-		*nArgs = 1;
+		(*nArgs)++;
 	}
 
 	// {, type identifier}
@@ -1017,6 +1070,7 @@ ParserInfo subroutineDeclar(Symbol* class) {
 		pi.tk = t;
 		return pi;
 	}
+	char isMethod = !strcmp(t.lx, "method");
 
 	// (type|void)
 	char typeString[128] = {0};
@@ -1066,7 +1120,7 @@ ParserInfo subroutineDeclar(Symbol* class) {
 	}
 
 	// paramList
-	pi = paramList(subroutine, &subroutine->nArgs);
+	pi = paramList(subroutine, isMethod, &subroutine->nArgs);
 	if (pi.er != none) return pi;
 
 	// )

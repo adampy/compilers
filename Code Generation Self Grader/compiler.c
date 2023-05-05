@@ -163,7 +163,7 @@ int StopCompiler() {
 #ifndef TEST_COMPILER
 int main() {
 	InitCompiler();
-	ParserInfo p = compile("ConvertToBin");
+	ParserInfo p = compile("Fraction");
 	//printSymbolTable();
 	//printf("--- Overall compilation error ---\n");
 	//PrintError(p);
