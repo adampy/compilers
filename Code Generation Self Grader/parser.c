@@ -145,6 +145,7 @@ ParserInfo operand(Symbol* scope) {
 		}
 
 		// [ [ expression ] | ( expressionList ) ]
+		int isArray = 0;
 		if (t.tp == SYMBOL && !strcmp(t.lx, "[")) {
 			if (external[0] != '\0' && !isCodeGen()) setKind(externalSymbol, kStatic);
 			mGetNextToken(); // Consume [
@@ -160,6 +161,30 @@ ParserInfo operand(Symbol* scope) {
 				pi.tk = t;
 				return pi;
 			}
+
+			// code generation for array
+			isArray = 1;
+			if (isCodeGen()) {
+				Symbol* localVar = getSymbol(identifier.lx, scope);
+				if (localVar != NULL) {
+					Symbol* class = getSymbol(localVar->type, NULL); // a.function()
+					char variableNumber[128] = {0};
+					sprintf(variableNumber, "%d", localVar->number);
+					if (localVar->kind == kArgument) {
+						writePush(ARG, variableNumber);
+					} else if (localVar->kind == kVar) {
+						writePush(LOCAL, variableNumber);
+					} else if (localVar->kind == kField) {
+						writePush(THIS, variableNumber);
+					} else if (localVar->kind == kStatic) {
+						writePush(STATIC, variableNumber);
+					}
+				}
+				writeArithmetic(ADD);
+				writePop(POINTER, "1");
+				writePush(THAT, "0");
+			}
+
 		} else if (t.tp == SYMBOL && !strcmp(t.lx, "(")) {
 			if (external[0] != '\0' && !isCodeGen()) setKind(externalSymbol, kSubroutine);
 			
@@ -842,12 +867,33 @@ ParserInfo letStatement(Symbol* scope) {
 	}
 
 	// [ [expression] ]
+	int isArray = 0;
 	t = mGetNextToken(); // Here t can be = or a [
 	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 	if (t.tp == SYMBOL && !strcmp(t.lx, "[")) {
+
 		// expression
 		pi = expression(scope);
 		if (pi.er != none) return pi;
+		
+		isArray = 1;
+		if (isCodeGen()) {
+			char variableNumber[128] = {0};
+			sprintf(variableNumber, "%d", variable->number);
+			if (variable->kind == kArgument) {
+				writePush(ARG, variableNumber);
+			} else if (variable->kind == kVar) {
+				writePush(LOCAL, variableNumber);
+			} else if (variable->kind == kField) {
+				writePush(THIS, variableNumber);
+			} else if (variable->kind == kStatic) {
+				writePush(STATIC, variableNumber);
+			}
+		}
+
+		if (isCodeGen()) {
+			writeArithmetic(ADD);
+		}
 
 		// ]
 		t = mGetNextToken();
@@ -877,7 +923,13 @@ ParserInfo letStatement(Symbol* scope) {
 	if (isCodeGen()) {
 		char variableNumber[128] = {0};
 		sprintf(variableNumber, "%d", variable->number);
-		if (variable->kind == kArgument) {
+
+		if (isArray) {
+			writePop(TEMP, "0");
+			writePop(POINTER, "1");
+			writePush(TEMP, "0");
+			writePop(THAT, "0");
+		} else if (variable->kind == kArgument) {
 			writePop(ARG, variableNumber);
 		} else if (variable->kind == kVar) {
 			writePop(LOCAL, variableNumber);
