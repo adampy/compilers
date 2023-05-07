@@ -44,12 +44,12 @@ call Array.new 1
 pop local 0
 push constant 0
 pop local 2
-label WHILE_EXP5
+label WHILE_EXP0
 push local 2
 push local 1
 lt
 not
-if-goto WHILE_END5
+if-goto WHILE_END0
 push local 2
 push constant 23
 call String.new 1
@@ -105,18 +105,18 @@ push local 2
 push constant 1
 add
 pop local 2
-goto WHILE_EXP5
-label WHILE_END5
+goto WHILE_EXP0
+label WHILE_END0
 push constant 0
 pop local 2
 push constant 0
 pop local 3
-label WHILE_EXP6
+label WHILE_EXP1
 push local 2
 push local 1
 lt
 not
-if-goto WHILE_END6
+if-goto WHILE_END1
 push local 3
 push local 2
 add
@@ -125,8 +125,8 @@ push local 2
 push constant 1
 add
 pop local 2
-goto WHILE_EXP6
-label WHILE_END6
+goto WHILE_EXP1
+label WHILE_END1
 push constant 16
 call String.new 1
 push constant 84

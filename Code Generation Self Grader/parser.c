@@ -48,8 +48,8 @@ ParserInfo operand(Symbol* scope) {
 		writePush(CONST, "0");
 		return pi;
 	} else if (t.tp == RESWORD && !strcmp(t.lx, "true")) {
-		writePush(CONST, "1");
-		writeArithmetic(NEG);
+		writePush(CONST, "0");
+		writeArithmetic(NOT);
 		return pi;
 	}
 
@@ -395,13 +395,20 @@ ParserInfo expression(Symbol* scope) {
 	// { ( & | | ) relationalExpression }
 	t = PeekNextToken();
 	while (t.tp == SYMBOL && (!strcmp(t.lx, "&") || !strcmp(t.lx, "|"))) {
-		mGetNextToken(); // Consume & or |
+		Token op = mGetNextToken(); // Consume & or |
 		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 
 		// relationalExpression
 		pi = relationalExpression(scope);
 		if (pi.er != none) return pi;
 		t = PeekNextToken();
+
+		// code generation
+		if (!strcmp(op.lx, "&")) {
+			writeArithmetic(AND);
+		} else {
+			writeArithmetic(OR);
+		}
 	}
 	
 	pi.er = none;
@@ -520,7 +527,15 @@ ParserInfo subroutineCall(Symbol* scope) {
 				Symbol* class = getSymbol(localVar->type, NULL); // a.function()
 				char variableNumber[128] = {0};
 				sprintf(variableNumber, "%d", localVar->number);
-				writePush(LOCAL, variableNumber);
+
+				//writePush(LOCAL, variableNumber);
+				if (localVar->kind == kArgument) {
+					writePush(ARG, variableNumber);
+				} else if (localVar->kind == kVar) {
+					writePush(LOCAL, variableNumber);
+				} else if (localVar->kind == kField) {
+					writePush(THIS, variableNumber);
+				}
 			}
 		}
 
@@ -667,7 +682,7 @@ ParserInfo whileStatement(Symbol* scope) {
 	char whileExpLabel[128] = {0};
 	char whileEndLabel[128] = {0};
 	if (isCodeGen()) {
-		int labelNumber = getNextWhileLabelNumber();
+		int labelNumber = scope->whilesEncountered++;//getNextWhileLabelNumber();
 		sprintf(whileExpLabel, "WHILE_EXP%d", labelNumber);
 		sprintf(whileEndLabel, "WHILE_END%d", labelNumber);
 		writeLabel(whileExpLabel);
@@ -749,7 +764,7 @@ ParserInfo ifStatement(Symbol* scope) {
 	char ifTrueLabel[128] = {0};
 	char ifFalseLabel[128] = {0};
 	if (isCodeGen()) {
-		int labelNumber = getNextIfLabelNumber();
+		int labelNumber = scope->ifsEncountered++;//getNextIfLabelNumber();
 		sprintf(ifTrueLabel, "IF_TRUE%d", labelNumber);
 		sprintf(ifFalseLabel, "IF_FALSE%d", labelNumber);
 		writeIf(ifTrueLabel);
@@ -1327,7 +1342,7 @@ ParserInfo classVarDeclar(Symbol* class) {
 		setType(classVar, typeString);
 
 		if (!isStatic) {
-			class->nVars++;
+			classVar->number = class->nVars++;
 		}
 	}
 
@@ -1366,7 +1381,7 @@ ParserInfo classVarDeclar(Symbol* class) {
 			setType(newClassVar, typeString);
 
 			if (!isStatic) {
-				class->nVars++;
+				classVar->number = class->nVars++;
 			}
 		}
 
@@ -1477,6 +1492,7 @@ int InitParser(char* file_name) {
 }
 
 ParserInfo Parse() {
+	//resetLabelNumbers();
 	ParserInfo pi = classDeclar();
 	return pi;
 }

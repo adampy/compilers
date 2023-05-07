@@ -31,6 +31,9 @@ typedef struct SymbolT {
     int nArgs; // Used to denote how many arguments a function takes
     int nArgsEncountered; // Used to denote how many arguments a function takes (but used when sorting per function numbering)
     int nVars; // Used to denote how many local variables (if a funciton) or field variables (if a class) the symbol has
+    int nVarsEncountered; // Used to denote how field args a class has (but used when sorting per class numbering)
+    int ifsEncountered;
+    int whilesEncountered;
 } Symbol;
 
 
@@ -80,5 +83,6 @@ void setCodeGen(char val);
 
 int getNextIfLabelNumber();
 int getNextWhileLabelNumber();
+void resetLabelNumbers();
 
 #endif

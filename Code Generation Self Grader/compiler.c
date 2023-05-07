@@ -164,7 +164,7 @@ int StopCompiler() {
 #ifndef TEST_COMPILER
 int main() {
 	InitCompiler();
-	ParserInfo p = compile("Fraction");
+	ParserInfo p = compile("Square");
 	//printSymbolTable();
 	//printf("--- Overall compilation error ---\n");
 	//PrintError(p);

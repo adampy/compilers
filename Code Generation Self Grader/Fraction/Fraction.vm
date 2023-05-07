@@ -21,9 +21,9 @@ pop local 0
 push local 0
 push constant 1
 gt
-if-goto IF_TRUE1
-goto IF_FALSE1
-label IF_TRUE1
+if-goto IF_TRUE0
+goto IF_FALSE0
+label IF_TRUE0
 push this 0
 push local 0
 call Math.divide 2
@@ -32,7 +32,7 @@ push this 1
 push local 0
 call Math.divide 2
 pop this 1
-label IF_FALSE1
+label IF_FALSE0
 push constant 0
 return
 function Fraction.getNumerator 0

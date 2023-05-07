@@ -143,6 +143,9 @@ Symbol* insertSymbol(Symbol* scope, Kind kind, char isPendingDeclaration) {
     s->nArgs = 0;
     s->nVars = 0;
     s->nArgsEncountered = 0;
+    s->nVarsEncountered = 0;
+    s->ifsEncountered = 0;
+    s->whilesEncountered = 0;
     memset(s->identifier, 0, 128);
 
     // Set number attribute
@@ -268,7 +271,7 @@ void completeNumbering() {
         Kind kind = curr->kind;
         if (kind == kClass) curr->number = kClassNumber++;
         else if (kind == kStatic) curr->number = kStaticNumber++;
-        else if (kind == kField) curr->number = kFieldNumber++;
+        else if (kind == kField) curr->number = curr->scope->nVarsEncountered++;
         else if (kind == kArgument) curr->number = curr->scope->nArgsEncountered++;
         //else if (kind == kVar) curr->number = kVarNumber++;
         else if (kind == kSubroutine) curr->number = kSubroutineNumber++;
@@ -297,11 +300,16 @@ void setCodeGen(char val) {
     _isCodeGen = val;
 }
 
-int ifLabel = 0;
+
+/*int ifLabel = 0;
+int whileLabel = 0;
 int getNextIfLabelNumber() {
     return ifLabel++;
 }
-int whileLabel = 0;
 int getNextWhileLabelNumber() {
     return whileLabel++;
 }
+void resetLabelNumbers() {
+    ifLabel = 0;
+    whileLabel = 0;
+}*/
