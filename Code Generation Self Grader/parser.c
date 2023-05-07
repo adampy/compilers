@@ -248,14 +248,17 @@ ParserInfo factor(Symbol* scope) {
 	ParserInfo pi;
 	Token t;
 	char isNegated = 0;
+	char isNot = 0;
 
 	// ( - | ~ | ε )
 	t = PeekNextToken();
 	if (t.tp == SYMBOL && (!strcmp(t.lx, "-") || !strcmp(t.lx, "~"))) {
 		Token op = mGetNextToken(); // Consume - or ~
 		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
-		if (!strcmp(op.lx, "-") || !strcmp(op.lx, "~")) {
+		if (!strcmp(op.lx, "~")) {
 			isNegated = 1;
+		} else if (!strcmp(op.lx, "-")) {
+			isNot = 1;
 		}
 	}
 
@@ -266,6 +269,8 @@ ParserInfo factor(Symbol* scope) {
 
 	if (isNegated) {
 		writeArithmetic(NOT);
+	} else if (isNot) {
+		writeArithmetic(NEG);
 	}
 	return pi;
 }
@@ -763,10 +768,12 @@ ParserInfo ifStatement(Symbol* scope) {
 	// code generation
 	char ifTrueLabel[128] = {0};
 	char ifFalseLabel[128] = {0};
+	char ifEndLabel[128] = {0};
 	if (isCodeGen()) {
 		int labelNumber = scope->ifsEncountered++;//getNextIfLabelNumber();
 		sprintf(ifTrueLabel, "IF_TRUE%d", labelNumber);
 		sprintf(ifFalseLabel, "IF_FALSE%d", labelNumber);
+		sprintf(ifEndLabel, "IF_END%d", labelNumber);
 		writeIf(ifTrueLabel);
 		writeGoto(ifFalseLabel);
 		writeLabel(ifTrueLabel);
@@ -777,15 +784,27 @@ ParserInfo ifStatement(Symbol* scope) {
 	if (pi.er != none) return pi;
 
 	// [else { {statement} }]
-	if (isCodeGen()) {
+	/*if (isCodeGen()) {
 		writeLabel(ifFalseLabel);
-	}
+	}*/
 	t = PeekNextToken();
 	if (t.tp == RESWORD && !strcmp(t.lx, "else")) {
+		if (isCodeGen()) {
+			writeGoto(ifEndLabel);
+			writeLabel(ifFalseLabel);
+		}
 		mGetNextToken(); // Consume else token
 		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 		pi = statementList(scope);
 		if (pi.er != none) return pi;
+
+		if (isCodeGen()) {
+			writeLabel(ifEndLabel);
+		}
+	} else {
+		if (isCodeGen()) {
+			writeLabel(ifFalseLabel);
+		}
 	}
 
 	pi.er = none;

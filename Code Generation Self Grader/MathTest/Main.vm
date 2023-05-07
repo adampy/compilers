@@ -9,7 +9,7 @@ pop local 0
 push constant 1
 push constant 0
 push constant 30
-not
+neg
 call Math.multiply 2
 pop local 0
 push constant 2
@@ -34,14 +34,14 @@ call Math.divide 2
 pop local 0
 push constant 6
 push constant 18000
-not
+neg
 push constant 6
 call Math.divide 2
 pop local 0
 push constant 7
 push constant 32766
 push constant 32767
-not
+neg
 call Math.divide 2
 pop local 0
 push constant 8
@@ -60,7 +60,7 @@ pop local 0
 push constant 11
 push constant 123
 push constant 345
-not
+neg
 call Math.max 2
 pop local 0
 push constant 12
@@ -69,7 +69,7 @@ call Math.abs 1
 pop local 0
 push constant 13
 push constant 32767
-not
+neg
 call Math.abs 1
 pop local 0
 push constant 0

@@ -125,6 +125,7 @@ push this 0
 push constant 1
 call Bat.setDirection 2
 pop temp 0
+goto IF_END0
 label IF_FALSE0
 push local 0
 push constant 132
@@ -136,6 +137,7 @@ push this 0
 push constant 2
 call Bat.setDirection 2
 pop temp 0
+goto IF_END1
 label IF_FALSE1
 push local 0
 push constant 140
@@ -147,6 +149,8 @@ push constant 0
 not
 pop this 3
 label IF_FALSE2
+label IF_END1
+label IF_END0
 label WHILE_EXP2
 push local 0
 push constant 0
@@ -266,8 +270,9 @@ if-goto IF_TRUE3
 goto IF_FALSE3
 label IF_TRUE3
 push constant 1
-not
+neg
 pop local 0
+goto IF_END3
 label IF_FALSE3
 push local 3
 push local 2
@@ -280,6 +285,7 @@ label IF_TRUE4
 push constant 1
 pop local 0
 label IF_FALSE4
+label IF_END3
 push this 6
 push constant 2
 sub

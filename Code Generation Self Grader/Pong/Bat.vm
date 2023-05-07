@@ -150,6 +150,7 @@ push this 3
 add
 call Screen.drawRectangle 4
 pop temp 0
+goto IF_END0
 label IF_FALSE0
 push this 0
 push constant 4
@@ -201,5 +202,6 @@ push this 3
 add
 call Screen.drawRectangle 4
 pop temp 0
+label IF_END0
 push constant 0
 return
