@@ -176,6 +176,8 @@ ParserInfo operand(Symbol* scope) {
 						writePush(LOCAL, variableNumber);
 					} else if (localVar->kind == kField) {
 						writePush(THIS, variableNumber);
+					} else if (localVar->kind == kStatic) {
+						writePush(STATIC, variableNumber);
 					}
 				}
 			}
@@ -229,6 +231,8 @@ ParserInfo operand(Symbol* scope) {
 					writePush(LOCAL, variableNumber);
 				} else if (localVar->kind == kField) {
 					writePush(THIS, variableNumber);
+				} else if (localVar->kind == kStatic) {
+					writePush(STATIC, variableNumber);
 				}
 			}
 		}
@@ -784,9 +788,6 @@ ParserInfo ifStatement(Symbol* scope) {
 	if (pi.er != none) return pi;
 
 	// [else { {statement} }]
-	/*if (isCodeGen()) {
-		writeLabel(ifFalseLabel);
-	}*/
 	t = PeekNextToken();
 	if (t.tp == RESWORD && !strcmp(t.lx, "else")) {
 		if (isCodeGen()) {
@@ -882,6 +883,8 @@ ParserInfo letStatement(Symbol* scope) {
 			writePop(LOCAL, variableNumber);
 		} else if (variable->kind == kField) {
 			writePop(THIS, variableNumber);
+		} else if (variable->kind == kStatic) {
+			writePop(STATIC, variableNumber);
 		}
 	}
 

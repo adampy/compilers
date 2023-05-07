@@ -30,6 +30,7 @@ char* segmentToString(Segment segment) {
         case THAT: return "that";
         case POINTER: return "pointer";
         case TEMP: return "temp";
+        case STATIC: return "static";
         default: return "";
     }
 }

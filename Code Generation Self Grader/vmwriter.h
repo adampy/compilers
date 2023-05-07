@@ -8,7 +8,8 @@ typedef enum {
     THIS,
     THAT,
     POINTER,
-    TEMP
+    TEMP,
+    STATIC
 } Segment;
 
 typedef enum {
