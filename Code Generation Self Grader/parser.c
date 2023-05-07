@@ -5,9 +5,119 @@
 #include "lexer.h"
 #include "parser.h"
 #include "symbols.h"
-#include "vmwriter.h"
+#include "compiler.h"
 
-//# include "SymbolGrader.h" // TODO: REMOVE THIS
+// ----- VMWRITER FUNCTIONS -----
+typedef enum {
+    CONST,
+    ARG,
+    LOCAL,
+    THIS,
+    THAT,
+    POINTER,
+    TEMP,
+    STATIC
+} Segment;
+
+typedef enum {
+    ADD,
+    SUB,
+    NEG,
+    EQ,
+    GT,
+    LT,
+    AND,
+    OR,
+    NOT
+} Operation;
+
+// ----- STRING FUNCTIONS -----
+
+char* segmentToString(Segment segment) {
+    switch (segment) {
+        case CONST: return "constant";
+        case ARG: return "argument";
+        case LOCAL: return "local";
+        case THIS: return "this";
+        case THAT: return "that";
+        case POINTER: return "pointer";
+        case TEMP: return "temp";
+        case STATIC: return "static";
+        default: return "";
+    }
+}
+
+char* operationToString(Operation op) {
+    switch (op) {
+        case ADD: return "add";
+        case SUB: return "sub";
+        case NEG: return "neg";
+        case EQ: return "eq";
+        case GT: return "gt";
+        case LT: return "lt";
+        case AND: return "and";
+        case OR: return "or";
+        case NOT: return "not";
+        default: return "";
+    }
+} 
+
+// ----- WRITING FUNCTIONS -----
+
+void writePush(Segment segment, char* index) {
+	FILE* output = getOutput();
+    if (output == NULL) return;
+    fprintf(output, "push %s %s\n", segmentToString(segment), index);
+}
+
+void writePop(Segment segment, char* index)  {
+	FILE* output = getOutput();
+    if (output == NULL) return;
+    fprintf(output, "pop %s %s\n", segmentToString(segment), index);
+}
+
+void writeArithmetic(Operation op) {
+	FILE* output = getOutput();
+    if (output == NULL) return;
+    fprintf(output, "%s\n", operationToString(op));
+}
+
+void writeLabel(char* label) {
+	FILE* output = getOutput();
+    if (output == NULL) return;
+    fprintf(output, "label %s\n", label);
+}
+
+void writeGoto(char* label) {
+	FILE* output = getOutput();
+    if (output == NULL) return;
+    fprintf(output, "goto %s\n", label);
+}
+
+void writeIf(char* label) {
+	FILE* output = getOutput();
+    if (output == NULL) return;
+    fprintf(output, "if-goto %s\n", label);
+}
+
+void writeCall(char* name, int nArgs) {
+	FILE* output = getOutput();
+    if (output == NULL) return;
+    fprintf(output, "call %s %i\n", name, nArgs);
+}
+
+void writeFunction(char* name, int nLocals) {
+	FILE* output = getOutput();
+    if (output == NULL) return;
+    fprintf(output, "function %s %i\n", name, nLocals);
+}
+
+void writeReturn() {
+	FILE* output = getOutput();
+    if (output == NULL) return;
+    fprintf(output, "return\n");
+}
+
 
 // Modified get token and peek token
 ParserInfo lexerErrorInfo;

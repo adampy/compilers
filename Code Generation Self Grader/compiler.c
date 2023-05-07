@@ -18,8 +18,24 @@ Date Work Commenced: 23/04/2023
 #include <string.h>
 #include <dirent.h>
 #include "compiler.h"
-#include "vmwriter.h"
-//#include "SymbolGrader.h"
+
+// ----- FILE HANDLING FUNCTIONS -----
+
+FILE* output = NULL;
+void initOutput(char* inputFilename) {
+    char outputFilename[128] = {0};
+    strcpy(outputFilename, inputFilename); // Move filename to output name
+    char* extension = strstr(outputFilename, ".jack");
+    strcpy(extension, ".vm"); // Replace .jack with .vm
+    output = fopen(outputFilename, "w");
+}
+void closeOutput() {
+    fclose(output);
+    output = NULL;
+}
+FILE* getOutput() {
+	return output;
+}
 
 #define NUM_STANDARD_LIBS 8
 char* standardLibraries[NUM_STANDARD_LIBS] = {

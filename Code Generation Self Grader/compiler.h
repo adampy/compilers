@@ -5,6 +5,12 @@
 
 #include "parser.h"
 #include "symbols.h"
+#include <stdlib.h>
+#include <stdio.h>
+
+void initOutput(char* inputFilename);
+void closeOutput();
+FILE* getOutput();
 
 int InitCompiler ();
 ParserInfo compile (char* dir_name);
