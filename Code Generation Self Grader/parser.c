@@ -55,10 +55,30 @@ ParserInfo operand(Symbol* scope) {
 
 	// Cases: integerConstant | stringLiteral
 	if (t.tp == INT) {
-		writePush(CONST, t.lx);
+		if (isCodeGen()) {
+			writePush(CONST, t.lx);
+		}
 		pi.er = none;
 		return pi;
 	} else if (t.tp == STRING) {
+		// push constant SIZE
+		// call String.new 1
+		// push constant ASCII_CHARACTER
+		// call String.appendChar 2
+
+		if (isCodeGen()) {
+			char buffer[128] = {0};
+			sprintf(buffer, "%d", (int)strlen(t.lx));
+			writePush(CONST, buffer);
+			writeCall("String.new", 1);
+			for (int i = 0; i < strlen(t.lx); i++) {
+				char c = t.lx[i];
+				sprintf(buffer, "%d", c);
+				writePush(CONST, buffer);
+				writeCall("String.appendChar", 2);
+			}
+		}
+
 		pi.er = none;
 		return pi;
 	}
@@ -150,7 +170,13 @@ ParserInfo operand(Symbol* scope) {
 					Symbol* class = getSymbol(localVar->type, NULL); // a.function()
 					char variableNumber[128] = {0};
 					sprintf(variableNumber, "%d", localVar->number);
-					writePush(LOCAL, variableNumber);
+					if (localVar->kind == kArgument) {
+						writePush(ARG, variableNumber);
+					} else if (localVar->kind == kVar) {
+						writePush(LOCAL, variableNumber);
+					} else if (localVar->kind == kField) {
+						writePush(THIS, variableNumber);
+					}
 				}
 			}
 			
@@ -196,6 +222,7 @@ ParserInfo operand(Symbol* scope) {
 				Symbol* localVar = getSymbol(identifier.lx, scope);
 				char variableNumber[128] = {0};
 				sprintf(variableNumber, "%d", localVar->number);
+				//printf("%s is %d\n", localVar->identifier, localVar->number);
 				if (localVar->kind == kArgument) {
 					writePush(ARG, variableNumber);
 				} else if (localVar->kind == kVar) {
@@ -238,7 +265,7 @@ ParserInfo factor(Symbol* scope) {
 	if (pi.er != none) return pi;
 
 	if (isNegated) {
-		writeArithmetic(NEG);
+		writeArithmetic(NOT);
 	}
 	return pi;
 }
@@ -320,13 +347,22 @@ ParserInfo relationalExpression(Symbol* scope) {
 	// { ( = | > | < ) arithmeticExpression }
 	t = PeekNextToken();
 	while (t.tp == SYMBOL && (!strcmp(t.lx, "=") || !strcmp(t.lx, ">") || !strcmp(t.lx, "<"))) {
-		mGetNextToken(); // Consume =, >, or <
+		Token op = mGetNextToken(); // Consume =, >, or <
 		if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
 
 		// arithmeticExpression
 		pi = arithmeticExpression(scope);
 		if (pi.er != none) return pi;
 		t = PeekNextToken();
+
+		// code generation
+		if (!strcmp(op.lx, ">")) {
+			writeArithmetic(GT);
+		} else if (!strcmp(op.lx, "<")) {
+			writeArithmetic(LT);
+		} else {
+			writeArithmetic(EQ);
+		}
 	}
 
 	pi.er = none;
@@ -627,6 +663,16 @@ ParserInfo whileStatement(Symbol* scope) {
 		return pi;
 	}
 
+	// code generation
+	char whileExpLabel[128] = {0};
+	char whileEndLabel[128] = {0};
+	if (isCodeGen()) {
+		int labelNumber = getNextWhileLabelNumber();
+		sprintf(whileExpLabel, "WHILE_EXP%d", labelNumber);
+		sprintf(whileEndLabel, "WHILE_END%d", labelNumber);
+		writeLabel(whileExpLabel);
+	}
+
 	// (
 	t = mGetNextToken();
 	if (lexerErrorInfo.er != none) return lexerErrorInfo; // Check for lexer errors
@@ -649,9 +695,15 @@ ParserInfo whileStatement(Symbol* scope) {
 		return pi;
 	}
 
+	writeArithmetic(NOT);
+	writeIf(whileEndLabel);
+
 	// { {statement} }
 	pi = statementList(scope);
 	if (pi.er != none) return pi;
+
+	writeGoto(whileExpLabel);
+	writeLabel(whileEndLabel);
 
 	pi.er = none;
 	return pi;
@@ -693,11 +745,26 @@ ParserInfo ifStatement(Symbol* scope) {
 		return pi;
 	}
 
+	// code generation
+	char ifTrueLabel[128] = {0};
+	char ifFalseLabel[128] = {0};
+	if (isCodeGen()) {
+		int labelNumber = getNextIfLabelNumber();
+		sprintf(ifTrueLabel, "IF_TRUE%d", labelNumber);
+		sprintf(ifFalseLabel, "IF_FALSE%d", labelNumber);
+		writeIf(ifTrueLabel);
+		writeGoto(ifFalseLabel);
+		writeLabel(ifTrueLabel);
+	}
+
 	// { {statement} }
 	pi = statementList(scope);
 	if (pi.er != none) return pi;
 
 	// [else { {statement} }]
+	if (isCodeGen()) {
+		writeLabel(ifFalseLabel);
+	}
 	t = PeekNextToken();
 	if (t.tp == RESWORD && !strcmp(t.lx, "else")) {
 		mGetNextToken(); // Consume else token
@@ -896,6 +963,7 @@ ParserInfo varDeclarstatement(Symbol* scope) {
 
 	if (!isCodeGen()) {
 		pi = setIdentifier(firstVar, t);
+		firstVar->number = scope->nVars;
 		scope->nVars++;
 	}
 
@@ -923,6 +991,7 @@ ParserInfo varDeclarstatement(Symbol* scope) {
 			Symbol* var = declaredSymbol(scope, kVar);
 			setType(var, firstVar->type);
 			pi = setIdentifier(var, t);
+			var->number = scope->nVars;
 			scope->nVars++;
 		}
 		if (pi.er != none) return pi;
@@ -1017,20 +1086,20 @@ ParserInfo subroutineBody(Symbol* subroutine) {
 }
 
 // paramList -> type identifier {, type identifier} | ε
-ParserInfo paramList(Symbol* subroutine, int includeThis, int* nArgs) {
+ParserInfo paramList(Symbol* subroutine, int includeThis) {
 	ParserInfo pi;
 	pi.er = none;
 	Token t;
+	//subroutine->nArgs = 0;
 
 	// Conditionally add a `this` argument
 	if (!isCodeGen()) {
 		if (includeThis) {
 			Symbol* this = declaredSymbol(subroutine, kArgument);
+			this->number = 0;
 			setIdentifierByString(this, "this");	
 			setType(this, subroutine->scope->type); // Set type to class
-			*nArgs = 1;
-		} else {
-			*nArgs = 0;
+			subroutine->nArgs++;
 		}
 	}
 	
@@ -1062,7 +1131,7 @@ ParserInfo paramList(Symbol* subroutine, int includeThis, int* nArgs) {
 
 	if (!isCodeGen()) {
 		setIdentifier(firstParam, t);
-		(*nArgs)++;
+		firstParam->number = subroutine->nArgs++;;
 	}
 
 	// {, type identifier}
@@ -1097,7 +1166,7 @@ ParserInfo paramList(Symbol* subroutine, int includeThis, int* nArgs) {
 
 		if (!isCodeGen()) {
 			setIdentifier(param, t);
-			(*nArgs)++;
+			firstParam->number = subroutine->nArgs++;
 		}
 
 		t = PeekNextToken();
@@ -1151,8 +1220,8 @@ ParserInfo subroutineDeclar(Symbol* class) {
 			subroutine = declaredSymbol(class, kSubroutine);
 			setIdentifier(subroutine, t);
 		} else if (subroutine != NULL && !subroutine->isPendingDeclaration) {
-			printf("we are here again!\n");
-			printSymbol(subroutine);
+			//printf("we are here again!\n");
+			//printSymbol(subroutine);
 			pi.er = redecIdentifier;
 			pi.tk = t;
 		}
@@ -1171,7 +1240,7 @@ ParserInfo subroutineDeclar(Symbol* class) {
 	}
 
 	// paramList
-	pi = paramList(subroutine, isMethod, &subroutine->nArgs);
+	pi = paramList(subroutine, isMethod);
 	if (pi.er != none) return pi;
 
 	// )

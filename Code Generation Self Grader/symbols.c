@@ -142,6 +142,7 @@ Symbol* insertSymbol(Symbol* scope, Kind kind, char isPendingDeclaration) {
     s->scope = scope;
     s->nArgs = 0;
     s->nVars = 0;
+    s->nArgsEncountered = 0;
     memset(s->identifier, 0, 128);
 
     // Set number attribute
@@ -163,13 +164,6 @@ Symbol* insertSymbol(Symbol* scope, Kind kind, char isPendingDeclaration) {
     }
     // Return Symbol
     return tail;
-}
-
-/**
- * Function to check whether a given symbol, is accessible in the current scope
-*/
-int canGetSymbol() {
-    return 1;
 }
 
 Symbol* getFirstPendingDeclaration() {
@@ -275,8 +269,8 @@ void completeNumbering() {
         if (kind == kClass) curr->number = kClassNumber++;
         else if (kind == kStatic) curr->number = kStaticNumber++;
         else if (kind == kField) curr->number = kFieldNumber++;
-        else if (kind == kArgument) curr->number = kArgumentNumber++;
-        else if (kind == kVar) curr->number = kVarNumber++;
+        else if (kind == kArgument) curr->number = curr->scope->nArgsEncountered++;
+        //else if (kind == kVar) curr->number = kVarNumber++;
         else if (kind == kSubroutine) curr->number = kSubroutineNumber++;
         curr = curr->next;
     }
@@ -301,4 +295,13 @@ char isCodeGen() {
 }
 void setCodeGen(char val) {
     _isCodeGen = val;
+}
+
+int ifLabel = 0;
+int getNextIfLabelNumber() {
+    return ifLabel++;
+}
+int whileLabel = 0;
+int getNextWhileLabelNumber() {
+    return whileLabel++;
 }

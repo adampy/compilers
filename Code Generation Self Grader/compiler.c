@@ -43,6 +43,7 @@ ParserInfo compile(char* dir_name) {
 	p.er = none;
 	DIR *dir = NULL;
     struct dirent *de = NULL;
+	setCodeGen(0);
 
 	// Find all jack files
     dir = opendir(dir_name);
@@ -105,6 +106,7 @@ ParserInfo compile(char* dir_name) {
 	completeNumbering();
 
 	// Lex and parse again but with code generation enabled
+	setCodeGen(1);
 	dir = opendir(dir_name);
     while(dir) {
         de = readdir(dir);
@@ -125,7 +127,6 @@ ParserInfo compile(char* dir_name) {
 		strcat(fullFilename, filename);
 
 		// Init lexer and run parser
-		setCodeGen(1);
 		initOutput(fullFilename);
 		InitLexer(fullFilename);
 		p = Parse(); // Parser adds to global symbol table

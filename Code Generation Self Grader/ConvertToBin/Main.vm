@@ -2,47 +2,101 @@ function Main.main 1
 push constant 8001
 push constant 16
 push constant 1
-neg
+not
 call Main.fillMemory 3
 pop temp 0
 push constant 8000
+call Memory.peek 1
+pop local 0
+push local 0
 call Main.convert 1
 pop temp 0
 push constant 0
 return
 function Main.convert 3
 push constant 1
+neg
+pop local 2
+label WHILE_EXP8
+push local 2
+not
+if-goto WHILE_END8
+push local 1
+push constant 1
 add
+pop local 1
+push local 0
+call Main.nextMask 1
+pop local 0
+push local 1
 push constant 16
-neg
+gt
+not
+if-goto IF_TRUE27
+goto IF_FALSE27
+label IF_TRUE27
+push argument 0
+push local 0
 push constant 0
-neg
+eq
+not
+if-goto IF_TRUE28
+goto IF_FALSE28
+label IF_TRUE28
 push constant 8000
+push local 1
 add
 push constant 1
 call Memory.poke 2
 pop temp 0
+label IF_FALSE28
 push constant 8000
+push local 1
 add
 push constant 0
 call Memory.poke 2
 pop temp 0
+label IF_FALSE27
+push constant 0
+pop local 2
+goto WHILE_EXP8
+label WHILE_END8
 push constant 0
 return
 function Main.nextMask 0
+push argument 0
 push constant 0
+eq
+if-goto IF_TRUE29
+goto IF_FALSE29
+label IF_TRUE29
 push constant 1
 return
+label IF_FALSE29
+push argument 0
 push constant 2
 call Math.multiply 2
 return
 function Main.fillMemory 0
+label WHILE_EXP9
+push argument 1
 push constant 0
+gt
+not
+if-goto WHILE_END9
+push argument 0
+push argument 2
 call Memory.poke 2
 pop temp 0
+push argument 1
 push constant 1
 sub
+pop argument 1
+push argument 0
 push constant 1
 add
+pop argument 0
+goto WHILE_EXP9
+label WHILE_END9
 push constant 0
 return

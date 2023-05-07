@@ -29,6 +29,7 @@ typedef struct SymbolT {
     char isDeclaredTwice; // Has the identifier been declared more than once
 
     int nArgs; // Used to denote how many arguments a function takes
+    int nArgsEncountered; // Used to denote how many arguments a function takes (but used when sorting per function numbering)
     int nVars; // Used to denote how many local variables (if a funciton) or field variables (if a class) the symbol has
 } Symbol;
 
@@ -76,5 +77,8 @@ void InitSymbols();
 
 char isCodeGen();
 void setCodeGen(char val);
+
+int getNextIfLabelNumber();
+int getNextWhileLabelNumber();
 
 #endif
